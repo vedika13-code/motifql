@@ -1,0 +1,6 @@
+alphabet RNA;
+
+// Valid in RNA: U is uracil. The same literal would be rejected in DNA.
+motif kozak_rna = "GCCRCCAUGG";
+
+search kozak_rna in "transcripts.fa";

@@ -1,0 +1,15 @@
+alphabet DNA;
+
+// Missing closing brace on the quantifier.
+motif broken1 = "ATG"{2,4 ;
+
+// Unterminated sequence literal.
+motif broken2 = "ATGC ;
+
+// Missing '{' or '=' after the name.
+motif broken3 "ATG";
+
+// This one is fine -- recovery should reach it and parse it correctly.
+motif healthy = "GGATCC";
+
+search healthy in "chr1.fa";

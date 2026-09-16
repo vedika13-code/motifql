@@ -1,0 +1,14 @@
+alphabet DNA;
+
+// EcoRI recognition site -- a real, exact palindromic restriction
+// enzyme site, used here as a clean single-literal example with a
+// hand-verifiable hit position.
+motif ecoRI = "GAATTC";
+
+// BisI-style degenerate site using an IUPAC code, to confirm class
+// resolution works correctly through the whole NFA->DFA pipeline,
+// not just in the AST dump.
+motif degenerate_site = "GC" "N" "GC";
+
+search ecoRI in "restriction_sites.fa";
+search degenerate_site in "restriction_sites.fa";

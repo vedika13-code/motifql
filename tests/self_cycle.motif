@@ -1,0 +1,6 @@
+alphabet DNA;
+
+// Direct self-reference.
+motif recursive { "ATG" @recursive "TAA" }
+
+search recursive in "chr1.fa";

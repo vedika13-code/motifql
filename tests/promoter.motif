@@ -1,0 +1,30 @@
+// A eukaryotic core-promoter sketch: a TATA box upstream of a Kozak
+// sequence, separated by a variable spacer.
+
+alphabet DNA;
+
+// TATA box. W = A or T, R = A or G -- IUPAC codes are native symbols,
+// not something the user has to expand by hand.
+motif tata = "TATAWAWR";
+
+// Kozak consensus: (gcc)gccRccATGG -- simplified to the core here.
+motif kozak {
+    ("A" | "G") "CC" "ATG" "G"
+}
+
+// Polyadenylation signal, tolerant of one substitution.
+motif polyA { "AATAAA" } allow 1 mismatch;
+
+// Composition: a promoter is a TATA box, a spacer of 20-40 arbitrary
+// bases, then a Kozak sequence.
+motif promoter {
+    @tata "N"{20,40} @kozak
+}
+
+// A class with negation: any base that is not a purine.
+motif pyrimidine_run {
+    [^AG]{3,}
+}
+
+search promoter in "chr1.fa";
+search polyA in "chr1.fa";

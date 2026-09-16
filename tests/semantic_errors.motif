@@ -1,0 +1,19 @@
+alphabet DNA;
+
+// 1. 'U' is uracil: valid in RNA, invalid in DNA.
+motif bad_symbol = "AUGC";
+
+// 2. Quantifier bounds inverted.
+motif bad_bounds = "ATG"{5,2};
+
+// 3. Reference to a motif that was never defined.
+motif dangling = @nonexistent "ATG";
+
+// 4. Can match the empty sequence, so it matches everywhere.
+motif empty_ok = "ATG"{0,3};
+
+// 5. Mismatch budget >= motif length: every window matches.
+motif too_loose = "ATG" allow 3 mismatch;
+
+// 6. Search on an undefined motif.
+search ghost in "chr1.fa";

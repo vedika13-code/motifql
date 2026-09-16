@@ -1,0 +1,8 @@
+alphabet DNA;
+
+// Q (glutamine) and L (leucine) are protein residues with no meaning
+// in a nucleotide alphabet. Under `alphabet PROTEIN` this same literal
+// would compile without complaint.
+motif protein_leak = "MQLKG";
+
+search protein_leak in "chr1.fa";

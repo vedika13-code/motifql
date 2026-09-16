@@ -1,0 +1,10 @@
+alphabet DNA;
+
+// Indirect cycle: a -> b -> c -> a.
+// This describes a pattern of unbounded nesting depth, which is not a
+// regular language and cannot be compiled to a finite automaton.
+motif a { "ATG" @b }
+motif b { "CCC" @c }
+motif c { "GGG" @a }
+
+search a in "chr1.fa";

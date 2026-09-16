@@ -1,0 +1,17 @@
+alphabet PROTEIN;
+
+// N-glycosylation sequon: N-X-S/T where X is any residue except proline.
+// Note that 'N' here is ASPARAGINE, a single specific residue -- not
+// "any residue" as it would be in DNA. Same character, different
+// meaning, resolved against the declared alphabet.
+motif nglyc {
+    "N" [^P] ("S" | "T")
+}
+
+// 'X' is the protein wildcard, equivalent to any of the 20 residues.
+motif zinc_finger {
+    "C" "X"{2,4} "C" "X"{12} "H" "X"{3,5} "H"
+}
+
+search nglyc in "proteome.fa";
+search zinc_finger in "proteome.fa";
