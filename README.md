@@ -75,3 +75,7 @@ See `docs/LANGUAGE.md` for the language, `docs/PHASE2.md` for the back end and `
 ## Author
 
 Vedika Goyal (24BCB0049), B.Tech. CSE (Bioinformatics), VIT Vellore. Compiler Design Laboratory project, 2026.
+
+## License
+
+MIT. See `LICENSE`.
