@@ -28,7 +28,7 @@ alphabetDecl := "alphabet" IDENT ";"
 motifDecl    := "motif" IDENT ( "{" pattern "}" modifiers? ";"?
                               | "=" pattern modifiers? ";" )
 
-modifiers    := "allow" NUMBER "mismatch"
+modifiers    := "allow" NUMBER ( "mismatch" | "edit" | "edits" )
 
 searchStmt   := "search" IDENT "in" STRING ";"
 
@@ -118,6 +118,21 @@ error rather than a warning.
 `"ATG" allow 3 mismatch` permits every one of its three residues to
 differ, so it matches everywhere. The budget must be strictly less
 than the motif's inferred minimum match length.
+
+### 4.7 Two error models: mismatches and edits
+
+`allow k mismatch` counts substitutions only (Hamming distance), so a
+hit is always exactly as long as the motif. `allow k edits` counts
+substitutions, inserted residues and deleted motif positions
+(Levenshtein distance), so a hit may be up to k residues shorter or
+longer. In both models an error can only introduce residues of the
+declared alphabet.
+
+The empty-match rule extends naturally: under edits, a budget of k
+deletions can erase a motif whose shortest form has k residues or
+fewer, so `"ATG" allow 3 edits` is an error. When k is at least half
+the shortest length the compiler warns instead: the motif is legal,
+but after deletions too little of it is left to be specific.
 
 ## 5. Inferred match lengths
 

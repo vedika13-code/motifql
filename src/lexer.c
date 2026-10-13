@@ -16,6 +16,7 @@ const char *token_type_name(TokenType type) {
         case TK_IN:        return "IN";
         case TK_ALLOW:     return "ALLOW";
         case TK_MISMATCH:  return "MISMATCH";
+        case TK_EDITS:     return "EDITS";
         case TK_IDENT:     return "IDENT";
         case TK_NUMBER:    return "NUMBER";
         case TK_STRING:    return "STRING";
@@ -105,6 +106,8 @@ static TokenType keyword_type(const char *start, int length) {
         {"in",       2, TK_IN},
         {"allow",    5, TK_ALLOW},
         {"mismatch", 8, TK_MISMATCH},
+        {"edits",    5, TK_EDITS},
+        {"edit",     4, TK_EDITS},
         {NULL, 0, TK_IDENT},
     };
     for (int i = 0; keywords[i].word; i++) {

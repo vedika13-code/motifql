@@ -1,0 +1,4 @@
+alphabet DNA;
+// 'edist' is not a tolerance keyword: syntax error, reported once.
+motif bad = "TATAAA" allow 1 edist;
+search bad in "edits.fa";

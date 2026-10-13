@@ -1,66 +1,42 @@
-# MotifQL — Phase 1
+# MotifQL
 
-A domain-specific language and compiler front end for biological
-sequence motif search — written in C, for a Compiler Design course
-project. **This package is Phase 1 only**: the front end (lexer,
-parser, symbol table, semantic analyser). Phase 2 (automaton
-construction and a FASTA matcher) and Phase 3 (native JIT) build on
-this same front end but are separate deliverables.
-
-MotifQL lets you describe a DNA/RNA/protein motif declaratively, with
-IUPAC ambiguity codes as native, alphabet-checked symbols.
+A domain-specific language and compiler, written in C, for searching
+biological sequences for motifs. Motifs are written with IUPAC
+ambiguity codes, composed from named parts, checked at compile time
+against a declared alphabet (DNA, RNA or protein), compiled through
+an NFA and a minimised DFA, and run over FASTA files.
 
 ```
 alphabet DNA;
-
-motif tata     = "TATAWAWR";
-motif kozak    { ("A" | "G") "CC" "ATG" "G" }
-motif polyA    { "AATAAA" } allow 1 mismatch;
+motif tata   = "TATAWAWR" allow 1 edits;
+motif kozak  = ("A" | "G") "CCATGG";
 motif promoter { @tata "N"{20,40} @kozak }
-
 search promoter in "chr1.fa";
 ```
 
-## Why
-
-Generic regular expressions don't know biology: a DNA pattern
-containing `U`, or a protein pattern with a non-amino-acid letter,
-simply compiles and silently never matches. MotifQL makes the
-alphabet part of the language, so every symbol is checked against the
-declared alphabet (DNA, RNA, or protein) at compile time, and
-ambiguity codes like `W` (A or T) or `N` (any base) are native
-symbols rather than something you expand by hand.
-
-## What's in this package
-
-Lexical analysis, recursive-descent syntax analysis, a symbol table,
-and a five-pass semantic analyser (symbol resolution, cycle
-detection, alphabet checking, quantifier-bound checking, and
-match-length inference). See `docs/LANGUAGE.md` for the grammar and
-design decisions, and `docs/PHASES.md` for how each classical
-compiler phase maps onto this project.
-
-## Build and run
-
-Requires a C11 compiler and GNU Make. No external dependencies.
+## Build and test
 
 ```
-make            # builds build/motifql
-make test       # runs all 8 front-end tests
-make demo       # runs tokens/AST/symbol-table dumps against a sample motif
+make            # builds build/motifql (C11, no dependencies)
+make test       # 26 tests, including a brute-force oracle (needs python3)
+make demo
 ```
 
-Try it directly:
+## Useful flags
 
-```
-./build/motifql --symbols tests/promoter.motif
-./build/motifql --ast tests/promoter.motif
-./build/motifql --tokens tests/promoter.motif
-```
+| Flag | Shows |
+| --- | --- |
+| `--tokens`, `--ast`, `--symbols` | front-end output: tokens, annotated syntax tree, symbol table |
+| `--nfa`, `--dfa`, `--bytecode` | the automaton at each stage |
+| `--specificity` | expected chance hits per motif, computed from the automaton |
+| `--background FILE --markov 0\|1` | background model estimated from a FASTA file |
+| `--max-rate R` | warn above R expected chance hits per Mb (default 1000) |
+| `--merge-contained` | drop hits lying wholly inside the previous hit |
+| `--no-search` | compile only |
 
-## Tests
+## Validation tools
 
-8 tests in `tests/run_tests.sh`, covering the accepting path across
-all three alphabets (DNA, RNA, protein) and five distinct rejection
-paths (invalid symbol, bad quantifier bounds, dangling reference,
-reference cycle, syntax/lexical errors with recovery).
+- `tools/oracle_check.py [trials] [seed]` compares hits with a brute-force dynamic program.
+- `tools/rate_check.py [Mb] [seed]` compares predicted and observed chance hits on random DNA.
+
+See `docs/LANGUAGE.md` for the language and `docs/PHASE2.md` for the compiler back end.

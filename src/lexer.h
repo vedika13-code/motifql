@@ -5,7 +5,7 @@
 
 typedef enum {
     /* keywords */
-    TK_ALPHABET, TK_MOTIF, TK_SEARCH, TK_IN, TK_ALLOW, TK_MISMATCH,
+    TK_ALPHABET, TK_MOTIF, TK_SEARCH, TK_IN, TK_ALLOW, TK_MISMATCH, TK_EDITS,
     /* literals and names */
     TK_IDENT, TK_NUMBER, TK_STRING,
     /* structure */

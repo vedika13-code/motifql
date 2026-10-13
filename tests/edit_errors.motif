@@ -1,0 +1,11 @@
+// Semantic checks specific to edit distance.
+alphabet DNA;
+
+// Rejected: 3 deletions would erase the whole 3-residue motif.
+motif start_codon = "ATG" allow 3 edits;
+
+// Accepted with a warning: after 2 deletions only 2 residues are left.
+motif short_site = "GATC" allow 2 edits;
+
+search start_codon in "edits.fa";
+search short_site in "edits.fa";

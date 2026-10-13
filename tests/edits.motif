@@ -1,0 +1,11 @@
+// Edit-distance demo: a TATA box that tolerates one substitution,
+// insertion or deletion. Every edit is typed by the DNA alphabet.
+alphabet DNA;
+
+motif tata_exact = "TATAWAWR";
+motif tata_mm    = "TATAWAWR" allow 1 mismatch;
+motif tata_edit  = "TATAWAWR" allow 1 edits;
+
+search tata_exact in "edits.fa";
+search tata_mm    in "edits.fa";
+search tata_edit  in "edits.fa";

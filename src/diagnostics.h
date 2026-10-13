@@ -15,6 +15,7 @@ typedef enum {
     PHASE_LEXICAL,
     PHASE_SYNTAX,
     PHASE_SEMANTIC,
+    PHASE_SPECIFICITY,  /* compile-time statistical analysis of the compiled automaton */
 } CompilerPhase;
 
 typedef enum {

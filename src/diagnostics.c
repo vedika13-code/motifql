@@ -13,6 +13,7 @@ const char *phase_name(CompilerPhase phase) {
         case PHASE_LEXICAL:  return "lexical";
         case PHASE_SYNTAX:   return "syntax";
         case PHASE_SEMANTIC: return "semantic";
+        case PHASE_SPECIFICITY: return "specificity";
     }
     return "?";
 }

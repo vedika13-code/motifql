@@ -19,6 +19,26 @@
  * @a describes an infinitely large pattern that cannot be compiled.
  */
 
+/*
+ * What one unit of the error budget buys.
+ *
+ *   ERR_SUBSTITUTION  -- `allow k mismatch`: Hamming distance. A match
+ *                        is always exactly as long as the motif.
+ *   ERR_EDIT          -- `allow k edits`: Levenshtein distance. An edit
+ *                        is a substitution, an inserted residue, or a
+ *                        deleted pattern position, so match length can
+ *                        shrink or grow by up to k.
+ *
+ * In both models every residue an error introduces is drawn from the
+ * declared alphabet, never "any character" -- the alphabet typing that
+ * the rest of the compiler enforces carries through to approximate
+ * matching.
+ */
+typedef enum {
+    ERR_SUBSTITUTION,
+    ERR_EDIT,
+} ErrorModel;
+
 typedef struct {
     const char *name;      /* points into the source buffer */
     int name_length;
@@ -26,7 +46,8 @@ typedef struct {
     int column;
 
     Node *pattern;         /* root of this motif's AST */
-    int mismatch_budget;   /* from `allow k mismatch`, 0 if absent */
+    int mismatch_budget;   /* k from `allow k mismatch` or `allow k edits`, 0 if absent */
+    ErrorModel error_model;/* which kind of error the budget counts (see below) */
 
     /* filled by semantic analysis */
     int min_len;

@@ -326,11 +326,31 @@ static void check_length_derived_rules(Sema *s) {
         if (m->mismatch_budget < 0) {
             sema_error(s, m->line, m->column,
                        "mismatch allowance cannot be negative");
-        } else if (m->min_len != LEN_INF && m->mismatch_budget >= m->min_len && m->min_len > 0) {
+        } else if (m->error_model == ERR_SUBSTITUTION && m->min_len != LEN_INF &&
+                   m->mismatch_budget >= m->min_len && m->min_len > 0) {
             sema_error(s, m->line, m->column,
                        "motif '%.*s' allows %d mismatch(es) but its shortest match is "
                        "only %d residue(s) long, so every position would match",
                        m->name_length, m->name, m->mismatch_budget, m->min_len);
+        } else if (m->error_model == ERR_EDIT && m->min_len != LEN_INF &&
+                   m->mismatch_budget >= m->min_len && m->min_len > 0) {
+            /* Under edit distance the budget can be spent on deletions,
+             * and deleting every position of the shortest alternative
+             * leaves the empty string -- the same degenerate "matches
+             * everywhere" motif the empty-match rule above rejects. */
+            sema_error(s, m->line, m->column,
+                       "motif '%.*s' allows %d edit(s) but its shortest match is only "
+                       "%d residue(s) long, so deletions alone could match the empty sequence",
+                       m->name_length, m->name, m->mismatch_budget, m->min_len);
+        } else if (m->error_model == ERR_EDIT && m->min_len != LEN_INF &&
+                   m->min_len > 0 && 2 * m->mismatch_budget >= m->min_len) {
+            /* Not wrong, but after k deletions fewer than k residues of
+             * the motif are left to pin the match down. */
+            sema_warn(s, m->line, m->column,
+                      "motif '%.*s' allows %d edit(s) against a shortest match of %d residue(s); "
+                      "after deletions only %d residue(s) would remain, so expect many chance hits",
+                      m->name_length, m->name, m->mismatch_budget, m->min_len,
+                      m->min_len - m->mismatch_budget);
         }
 
         if (!m->used) {

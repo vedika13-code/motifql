@@ -265,7 +265,14 @@ static void parse_mismatch_modifier(Parser *p, MotifDef *motif) {
     }
     advance(p);
     motif->mismatch_budget = (int)p->previous.number;
-    consume(p, TK_MISMATCH, "expect 'mismatch' after the allowance count");
+    if (match(p, TK_MISMATCH)) {
+        motif->error_model = ERR_SUBSTITUTION;
+    } else if (match(p, TK_EDITS)) {
+        motif->error_model = ERR_EDIT;
+    } else {
+        error_at_current(p, "expect 'mismatch' or 'edits' after the allowance count");
+        motif->mismatch_budget = 0;   /* don't carry a half-parsed budget into later dumps */
+    }
 }
 
 static void parse_motif_decl(Parser *p) {

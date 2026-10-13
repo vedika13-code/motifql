@@ -42,8 +42,8 @@ void symtab_print(Program *program) {
     printf("alphabet: %s\n", program->alphabet_declared
         ? alphabet_name(program->alphabet)
         : "(not declared, defaulted to DNA)");
-    printf("%-4s %-16s %-8s %-10s %-9s %s\n",
-           "#", "motif", "mismatch", "len", "used", "defined at");
+    printf("%-4s %-16s %-10s %-10s %-9s %s\n",
+           "#", "motif", "tolerance", "len", "used", "defined at");
     for (int i = 0; i < program->motif_count; i++) {
         MotifDef *m = &program->motifs[i];
         char lenbuf[32];
@@ -52,8 +52,12 @@ void symtab_print(Program *program) {
         } else {
             snprintf(lenbuf, sizeof(lenbuf), "%d..%d", m->min_len, m->max_len);
         }
-        printf("%-4d %-16.*s %-8d %-10s %-9s line %d\n",
-               i, m->name_length, m->name, m->mismatch_budget,
+        char tolbuf[24];
+        if (m->mismatch_budget == 0) snprintf(tolbuf, sizeof(tolbuf), "exact");
+        else snprintf(tolbuf, sizeof(tolbuf), "%d %s", m->mismatch_budget,
+                      m->error_model == ERR_EDIT ? "edit" : "mism");
+        printf("%-4d %-16.*s %-10s %-10s %-9s line %d\n",
+               i, m->name_length, m->name, tolbuf,
                lenbuf, m->used ? "yes" : "no", m->line);
     }
 
