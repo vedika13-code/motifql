@@ -1,0 +1,763 @@
+<title>MotifQL Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a lab bench. Program and sequences on the left, the instrument readout on the right. */
+:root {
+  --bg: #F2F5F5; --surface: #FFFFFF; --surface-2: #E9EFEF; --ink: #13232A; --muted: #55676D; --line: #D2DCDE;
+  --accent: #0B6E7A; --accent-ink: #FFFFFF; --accent-soft: #D5EBED;
+  --ok: #2B7A4B; --warn: #9A5B00; --bad: #B3362E; --ok-soft: #DDEFE3; --warn-soft: #F6E9D2; --bad-soft: #F6DEDB;
+  --nA: #1E8C3D; --nC: #1B5DB0; --nG: #A86F00; --nT: #BF3A2E;
+  --code-bg: #F7FAFA;
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0D1618; --surface: #132126; --surface-2: #1A2B30; --ink: #E1EBEC; --muted: #93A5AA; --line: #29393E;
+  --accent: #52C2CD; --accent-ink: #061214; --accent-soft: #123A3F;
+  --ok: #5DC48B; --warn: #E4A43D; --bad: #F2766C; --ok-soft: #12321F; --warn-soft: #3A2A0E; --bad-soft: #3D1A17;
+  --nA: #55C777; --nC: #6EA8FF; --nG: #E8B444; --nT: #F3756C; --code-bg: #0F1C20; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0D1618; --surface: #132126; --surface-2: #1A2B30; --ink: #E1EBEC; --muted: #93A5AA; --line: #29393E;
+  --accent: #52C2CD; --accent-ink: #061214; --accent-soft: #123A3F;
+  --ok: #5DC48B; --warn: #E4A43D; --bad: #F2766C; --ok-soft: #12321F; --warn-soft: #3A2A0E; --bad-soft: #3D1A17;
+  --nA: #55C777; --nC: #6EA8FF; --nG: #E8B444; --nT: #F3756C; --code-bg: #0F1C20; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f-body); }
+.wrap { max-width: 1440px; margin: 0 auto; padding-inline: 20px; padding-block: 18px 40px; }
+a { color: var(--accent); }
+button, select, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.brand h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(26px, 3.4vw, 34px); letter-spacing: -0.02em; margin: 0; line-height: 1.05; text-wrap: balance; }
+.brand h1 .q { color: var(--accent); }
+.brand h1 small { font-family: var(--f-body); font-weight: 500; font-size: 0.5em; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
+.brand p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.toplinks { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }
+
+.bench { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 18px; align-items: start; }
+@media (max-width: 980px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); min-width: 0; }
+.panel-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.fname { font-family: var(--f-mono); font-size: 13px; }
+
+.runbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.runbar select { flex: 1 1 100%; min-width: 0; }
+@media (min-width: 1200px) { .runbar select { flex-basis: 260px; } }
+select, input[type=number], input[type=text] { background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 7px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; padding: 7px 18px; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.small { padding: 3px 9px; font-size: 12.5px; }
+.kbd { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+.check { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); cursor: pointer; }
+
+/* Editor */
+.editor { display: grid; grid-template-columns: auto minmax(0, 1fr); height: 360px; background: var(--code-bg); border-radius: 0 0 var(--r) var(--r); overflow: hidden; }
+.gutter { margin: 0; padding: 12px 8px 12px 12px; text-align: right; color: var(--muted); font: 13px/20px var(--f-mono); overflow: hidden; user-select: none; border-right: 1px solid var(--line); min-width: 44px; }
+.gutter span { display: block; padding-right: 6px; border-radius: 3px; }
+.gutter span.err { background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+.gutter span.warn { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
+textarea.code { border: 0; outline: none; resize: none; background: transparent; padding: 12px 14px; font: 13px/20px var(--f-mono); white-space: pre; overflow: auto; tab-size: 4; min-width: 0; height: 100%; }
+textarea.code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent-soft); }
+
+/* Files */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 14px 0; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 4px 3px 11px; font: 12.5px var(--f-mono); background: var(--surface); cursor: pointer; }
+.chip[aria-selected="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.chip .x { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 5px; border-radius: 50%; font-size: 14px; line-height: 1; }
+.chip .x:hover { color: var(--bad); }
+.filemeta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 14px; }
+.filemeta input { flex: 1 1 160px; min-width: 0; font-family: var(--f-mono); font-size: 13px; }
+.filemeta .stat { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+textarea.seq { display: block; width: 100%; height: 150px; border: 0; border-top: 1px solid var(--line); background: var(--code-bg); padding: 10px 14px; font: 12.5px/18px var(--f-mono); resize: vertical; white-space: pre; overflow: auto; border-radius: 0 0 var(--r) var(--r); outline: none; }
+.drop { outline: 2px dashed var(--accent); outline-offset: -6px; }
+
+/* Settings */
+details.settings > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+details.settings > summary::-webkit-details-marker { display: none; }
+details.settings > summary::after { content: "Show"; font-size: 12.5px; color: var(--accent); }
+details.settings[open] > summary::after { content: "Hide"; }
+.grid-set { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 16px; padding: 4px 14px 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field > span { font-size: 12.5px; color: var(--muted); }
+.field .row { display: flex; gap: 8px; }
+.field .row > * { flex: 1; min-width: 0; }
+.hint { font-size: 12px; color: var(--muted); padding: 0 14px 12px; margin: 0; }
+
+/* Reference */
+details.ref > summary { cursor: pointer; padding: 10px 14px; list-style: none; display: flex; justify-content: space-between; }
+details.ref > summary::-webkit-details-marker { display: none; }
+details.ref > summary::after { content: "Show"; font-size: 12.5px; color: var(--accent); }
+details.ref[open] > summary::after { content: "Hide"; }
+.reftable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.reftable td { padding: 6px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+.reftable td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-space: nowrap; width: 1%; color: var(--accent); }
+.refwrap { overflow-x: auto; }
+
+/* Readout */
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 14px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.run { background: var(--accent-soft); color: var(--accent); }
+.counts { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.counts b { color: var(--ink); font-weight: 600; }
+
+.tabs { display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tab { border: 0; background: none; padding: 10px 12px; cursor: pointer; color: var(--muted); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.badge { font-size: 11px; font-weight: 600; min-width: 20px; padding: 1px 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.badge.bad { background: var(--bad-soft); color: var(--bad); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.view { padding: 14px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+.empty { padding: 26px 14px; text-align: center; color: var(--muted); }
+.empty b { color: var(--ink); display: block; margin-bottom: 4px; font-size: 15px; }
+
+.chosen { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: var(--r); padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; }
+.chosen .label { color: var(--accent); }
+.chosen .big { font-family: var(--f-display); font-weight: 600; font-size: 19px; }
+
+.search { border: 1px solid var(--line); border-radius: var(--r); min-width: 0; }
+.search-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding: 11px 14px; }
+.search-h h3 { margin: 0; font-family: var(--f-display); font-weight: 600; font-size: 17px; }
+.search-h h3 .in { font-family: var(--f-body); font-weight: 400; color: var(--muted); font-size: 14px; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.facts b { color: var(--ink); font-weight: 600; }
+.track { padding: 0 14px 12px; display: flex; flex-direction: column; gap: 8px; }
+.trk-l { font: 12px var(--f-mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 3px; }
+.track svg { width: 100%; height: 14px; display: block; }
+.track rect.hl { opacity: 1; fill: var(--ink); }
+.tablewrap { overflow-x: auto; border-top: 1px solid var(--line); }
+table.data { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+table.data th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 8px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.data td { padding: 6px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.data tr:last-child td { border-bottom: 0; }
+table.data td.num, table.data th.num { text-align: right; }
+table.data td.mono { font-family: var(--f-mono); font-size: 12.5px; }
+table.data tr.hl td { background: var(--accent-soft); }
+td.nowrap { white-space: nowrap; }
+.recname { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seqtxt { font-family: var(--f-mono); font-size: 12.5px; letter-spacing: 0.04em; white-space: nowrap; }
+.nA { color: var(--nA); } .nC { color: var(--nC); } .nG { color: var(--nG); } .nT { color: var(--nT); }
+.note { font-size: 12.5px; color: var(--muted); padding: 8px 14px; margin: 0; }
+
+.sec h3 { margin: 0 0 4px; font-family: var(--f-display); font-weight: 600; font-size: 17px; }
+.sec p.sub { margin: 0 0 10px; color: var(--muted); font-size: 13px; max-width: 70ch; }
+.box { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.bar { position: relative; height: 8px; background: var(--surface-2); border-radius: 4px; min-width: 120px; }
+.bar i { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 4px; background: var(--accent); }
+.bar i.over { background: var(--warn); }
+.bar .mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: .55; }
+.bar .ci { position: absolute; top: 2px; bottom: 2px; background: var(--accent); opacity: .35; border-radius: 3px; }
+.bar .pt { position: absolute; top: -2px; width: 4px; height: 12px; margin-left: -2px; background: var(--accent); border-radius: 2px; }
+.st { font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.st.chosen-st { background: var(--accent); color: var(--accent-ink); }
+.st.feas { background: var(--ok-soft); color: var(--ok); }
+.st.over { background: var(--bad-soft); color: var(--bad); }
+.meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; font-size: 13px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; }
+
+.subtabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.subtab { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; }
+.subtab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+pre.out { margin: 0; padding: 12px 14px; background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--r); font: 12.5px/1.55 var(--f-mono); overflow: auto; max-height: 560px; }
+
+.msgs { display: flex; flex-direction: column; gap: 8px; }
+.msg { border: 1px solid var(--line); border-left-width: 4px; border-radius: 8px; padding: 9px 12px; cursor: pointer; background: var(--surface); text-align: left; width: 100%; }
+.msg.error { border-left-color: var(--bad); }
+.msg.warning { border-left-color: var(--warn); }
+.msg .mh { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.msg .sev { font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em; }
+.msg.error .sev { color: var(--bad); } .msg.warning .sev { color: var(--warn); }
+.msg .mt { margin-top: 3px; }
+.msg pre { margin: 6px 0 0; font: 12px/1.45 var(--f-mono); color: var(--muted); overflow-x: auto; }
+
+footer { margin-top: 22px; color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+@media (prefers-reduced-motion: no-preference) { .pill.run::before { animation: blink 0.8s infinite alternate; } }
+@keyframes blink { from { opacity: 1; } to { opacity: .2; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Motif<span class="q">QL</span> <small>Playground</small></h1>
+      <p>Describe a DNA, RNA or protein motif, search your sequences, and see how many hits to expect by pure chance before you trust them. Everything runs in your browser; your sequences are never uploaded.</p>
+    </div>
+    <nav class="toplinks">
+      <a href="https://github.com/vedika13-code/motifql" target="_blank" rel="noopener">Source on GitHub</a>
+      <a href="https://github.com/vedika13-code/motifql/blob/main/docs/LANGUAGE.md" target="_blank" rel="noopener">Language guide</a>
+    </nav>
+  </header>
+
+  <main class="bench">
+    <section class="col" aria-label="Program and sequences">
+      <div class="runbar">
+        <select id="example" aria-label="Load an example"></select>
+        <button class="btn primary" id="run" title="Ctrl or ⌘ + Enter">Run</button>
+        <label class="check"><input type="checkbox" id="auto" checked> Run as I type</label>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><span class="label">Program</span><span class="fname">program.motif</span></div>
+        <div class="editor">
+          <pre class="gutter" id="gutter" aria-hidden="true"></pre>
+          <textarea class="code" id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="MotifQL program"></textarea>
+        </div>
+      </div>
+
+      <div class="panel" id="filesPanel">
+        <div class="panel-h">
+          <span class="label">Sequence files</span>
+          <div class="runbar">
+            <button class="btn small" id="newFile">New file</button>
+            <label class="btn small" for="upload">Upload FASTA</label>
+            <input type="file" id="upload" multiple accept=".fa,.fasta,.fna,.faa,.ffn,.txt,.seq" hidden>
+          </div>
+        </div>
+        <div class="chips" id="chips" role="tablist" aria-label="Sequence files"></div>
+        <div class="filemeta">
+          <input type="text" id="fileName" aria-label="File name">
+          <span class="stat" id="fileStat"></span>
+        </div>
+        <textarea class="seq" id="fileText" spellcheck="false" aria-label="File contents (FASTA)"></textarea>
+      </div>
+
+      <details class="panel settings" id="settings">
+        <summary><span class="label">Analysis settings</span></summary>
+        <div class="grid-set">
+          <label class="field"><span>Background model for chance hits</span>
+            <div class="row"><select id="bg"></select><select id="markov" aria-label="Markov order"></select></div></label>
+          <label class="field"><span>Known sites (for learning budgets)</span><select id="sites"></select></label>
+          <label class="field"><span>Warn above this many chance hits per Mb</span><input type="number" id="maxRate" min="0" step="100" value="1000"></label>
+          <label class="field"><span>Sensitivity: substitution / indel rate (%)</span>
+            <div class="row"><input type="number" id="div" min="0" max="50" step="1" value="10" aria-label="Substitution rate"><input type="number" id="indel" min="0" max="20" step="1" value="2" aria-label="Indel rate"></div></label>
+          <label class="field"><span>Simulated sites / random seed</span>
+            <div class="row"><input type="number" id="samples" min="100" max="50000" step="500" value="5000" aria-label="Simulated sites"><input type="number" id="seed" min="0" value="1" aria-label="Random seed"></div></label>
+          <div class="field"><span>Output</span>
+            <label class="check"><input type="checkbox" id="sens" checked> Estimate sensitivity</label>
+            <label class="check"><input type="checkbox" id="merge"> Hide hits nested inside another hit</label></div>
+        </div>
+        <p class="hint">The background model sets how chance hits are predicted. "Uniform" treats every letter as equally likely; fitting on a file with Markov order 1 or higher captures neighbour effects such as CpG depletion in real genomes.</p>
+      </details>
+
+      <details class="panel ref">
+        <summary><span class="label">Language quick reference</span></summary>
+        <div class="refwrap"><table class="reftable"><tbody>
+          <tr><td>alphabet DNA;</td><td>DNA, RNA or PROTEIN. Every letter in the program is checked against it.</td></tr>
+          <tr><td>motif m = "TATAWAWR";</td><td>A named motif. IUPAC codes work: W = A/T, R = A/G, N = any base.</td></tr>
+          <tr><td>[ACG]  [^AG]</td><td>One letter from a set, or any letter not in it.</td></tr>
+          <tr><td>("A" | "G")</td><td>Either alternative.</td></tr>
+          <tr><td>"N"{20,40}  *  +  ?</td><td>Repeat: 20 to 40 times, zero or more, one or more, optional.</td></tr>
+          <tr><td>motif p { @a "N"{5} @b }</td><td>Build a motif from other named motifs.</td></tr>
+          <tr><td>allow 1 mismatch</td><td>Tolerate one wrong letter.</td></tr>
+          <tr><td>allow 1 edits</td><td>Tolerate one wrong, missing or extra letter.</td></tr>
+          <tr><td>allow 1 mismatch at 1,2,5</td><td>Errors only at those positions.</td></tr>
+          <tr><td>allow ? edits</td><td>Let the compiler choose the number of errors.</td></tr>
+          <tr><td>require rate &lt;= 2 per 100kb</td><td>Limit on chance hits that the chosen errors must meet. Add <code>, divergence 10%</code> to set how far real sites drift.</td></tr>
+          <tr><td>search m in "file.fa";</td><td>Search one of your sequence files.</td></tr>
+          <tr><td>// comment</td><td>Comments run to the end of the line.</td></tr>
+        </tbody></table></div>
+      </details>
+    </section>
+
+    <section class="col" aria-label="Results">
+      <div class="panel">
+        <div class="status" id="status"><span class="pill run">Loading compiler</span></div>
+        <div class="tabs" role="tablist" aria-label="Result views">
+          <button class="tab" role="tab" data-tab="hits" aria-selected="true">Hits <span class="badge" id="b-hits">0</span></button>
+          <button class="tab" role="tab" data-tab="analysis" aria-selected="false">Chance and sensitivity</button>
+          <button class="tab" role="tab" data-tab="compiler" aria-selected="false">Compiler phases</button>
+          <button class="tab" role="tab" data-tab="messages" aria-selected="false">Messages <span class="badge" id="b-msgs">0</span></button>
+        </div>
+        <div class="view" id="v-hits"></div>
+        <div class="view" id="v-analysis" hidden></div>
+        <div class="view" id="v-compiler" hidden>
+          <div class="subtabs" id="phaseTabs"></div>
+          <p class="sub" id="phaseNote" style="margin:0;color:var(--muted);font-size:13px"></p>
+          <pre class="out" id="phaseOut"></pre>
+        </div>
+        <div class="view" id="v-messages" hidden></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>MotifQL compiler, written in C and compiled to WebAssembly. Same results as the command-line tool.</span>
+    <span>Vedika Goyal, VIT Vellore · MIT licence</span>
+  </footer>
+</div>
+
+<script>
+const WASM_B64 = "__WASM__";
+const EXAMPLES = __EXAMPLES__;
+
+/* ---------- WebAssembly runtime: a minimal WASI layer over an in-memory file system ---------- */
+let wasmModule = null;
+class ProcExit { constructor(code) { this.code = code; } }
+const enc = new TextEncoder(), dec = new TextDecoder();
+
+async function loadCompiler() {
+  const bin = Uint8Array.from(atob(WASM_B64), c => c.charCodeAt(0));
+  wasmModule = await WebAssembly.compile(bin);
+}
+
+async function motifql(args, files) {
+  const fsb = {};
+  for (const [k, v] of Object.entries(files)) fsb[k] = enc.encode(v);
+  const argv = ["motifql", ...args].map(a => enc.encode(a + "\0"));
+  const out = [], err = [], open = new Map();
+  let nextFd = 4, mem;
+  const V = () => new DataView(mem.buffer), U = () => new Uint8Array(mem.buffer);
+  const wasi = {
+    args_sizes_get(pc, ps) { V().setUint32(pc, argv.length, true); V().setUint32(ps, argv.reduce((s, a) => s + a.length, 0), true); return 0; },
+    args_get(pv, pb) { argv.forEach((a, i) => { V().setUint32(pv + 4 * i, pb, true); U().set(a, pb); pb += a.length; }); return 0; },
+    fd_write(fd, iovs, n, pnw) {
+      let total = 0;
+      for (let i = 0; i < n; i++) {
+        const p = V().getUint32(iovs + 8 * i, true), l = V().getUint32(iovs + 8 * i + 4, true);
+        const chunk = U().slice(p, p + l);
+        if (fd === 1) out.push(chunk); else if (fd === 2) err.push(chunk); else return 8;
+        total += l;
+      }
+      V().setUint32(pnw, total, true); return 0;
+    },
+    fd_read(fd, iovs, n, pnr) {
+      const f = open.get(fd);
+      if (!f) { if (fd === 0) { V().setUint32(pnr, 0, true); return 0; } return 8; }
+      let total = 0;
+      for (let i = 0; i < n; i++) {
+        const p = V().getUint32(iovs + 8 * i, true), l = V().getUint32(iovs + 8 * i + 4, true);
+        const k = Math.min(l, f.data.length - f.pos);
+        U().set(f.data.subarray(f.pos, f.pos + k), p); f.pos += k; total += k;
+        if (k < l) break;
+      }
+      V().setUint32(pnr, total, true); return 0;
+    },
+    fd_seek(fd, off, whence, pnew) {
+      const f = open.get(fd); if (!f) return 70;
+      const base = whence === 0 ? 0 : whence === 1 ? f.pos : f.data.length;
+      const np = base + Number(off); if (np < 0) return 28;
+      f.pos = np; V().setBigUint64(pnew, BigInt(np), true); return 0;
+    },
+    fd_close(fd) { open.delete(fd); return 0; },
+    fd_fdstat_get(fd, p) {
+      const type = fd <= 2 ? 2 : fd === 3 ? 3 : open.has(fd) ? 4 : -1;
+      if (type < 0) return 8;
+      const v = V(); v.setUint8(p, type); v.setUint16(p + 2, 0, true);
+      v.setBigUint64(p + 8, 0xFFFFFFFFFFFFFFFFn, true); v.setBigUint64(p + 16, 0xFFFFFFFFFFFFFFFFn, true); return 0;
+    },
+    fd_fdstat_set_flags() { return 0; },
+    fd_prestat_get(fd, p) { if (fd !== 3) return 8; V().setUint8(p, 0); V().setUint32(p + 4, 1, true); return 0; },
+    fd_prestat_dir_name(fd, p, len) { if (fd !== 3) return 8; U().set(enc.encode("/").subarray(0, len), p); return 0; },
+    path_open(dirfd, dirflags, pp, plen, oflags, rb, ri, fdflags, pfd) {
+      const name = dec.decode(U().slice(pp, pp + plen)).replace(/^(\.?\/)+/, "");
+      if (!(name in fsb)) return 44;
+      const fd = nextFd++; open.set(fd, { data: fsb[name], pos: 0 });
+      V().setUint32(pfd, fd, true); return 0;
+    },
+    proc_exit(code) { throw new ProcExit(code); },
+  };
+  const inst = await WebAssembly.instantiate(wasmModule, { wasi_snapshot_preview1: wasi });
+  mem = inst.exports.memory;
+  let code = 0;
+  try { inst.exports._start(); }
+  catch (e) {
+    if (e instanceof ProcExit) code = e.code;
+    else { err.push(enc.encode("motifql: internal error: " + e.message + "\n")); code = -1; }
+  }
+  const join = parts => { const n = parts.reduce((s, c) => s + c.length, 0), b = new Uint8Array(n); let o = 0; for (const c of parts) { b.set(c, o); o += c.length; } return dec.decode(b); };
+  return { code, stdout: join(out), stderr: join(err) };
+}
+
+/* ---------- State ---------- */
+const $ = id => document.getElementById(id);
+const state = { files: {}, active: null, last: null, phaseCache: {}, phase: "tokens", tab: "hits", version: 0 };
+const PROGRAM = "program.motif";
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function fmt(n) { if (!isFinite(n)) return String(n); if (n >= 100) return Math.round(n).toLocaleString("en-US"); if (n >= 10) return n.toFixed(1); if (n >= 0.1) return n.toFixed(2); if (n === 0) return "0"; return n.toPrecision(2); }
+function alphabetOf(src) { const m = /alphabet\s+(DNA|RNA|PROTEIN)/i.exec(src); return m ? m[1].toUpperCase() : "DNA"; }
+function colorSeq(s, alpha) {
+  if (alpha === "PROTEIN") return esc(s);
+  return [...s].map(c => { const u = c.toUpperCase(); const k = u === "U" ? "T" : u; return "ACGT".includes(k) ? `<span class="n${k}">${c}</span>` : esc(c); }).join("");
+}
+function parseFasta(text) {
+  const recs = []; let cur = null;
+  for (const line of text.split(/\r?\n/)) {
+    if (line.startsWith(">")) { cur = { name: line.slice(1).trim(), len: 0 }; recs.push(cur); }
+    else if (cur) cur.len += line.replace(/\s/g, "").length;
+  }
+  return recs;
+}
+
+/* ---------- Output parsers ---------- */
+function parseMain(stdout, stderr) {
+  const r = { summary: null, result: "", synth: [], spec: null, sens: null, searches: [], messages: parseMessages(stderr) };
+  const lines = stdout.split("\n");
+  let sec = null, cur = null, syn = null;
+  for (const line of lines) {
+    let m;
+    if (line.startsWith("== ")) {
+      sec = line; cur = null;
+      if ((m = /^== budget synthesis: (\S+) \((.*)\) ==$/.exec(line))) { syn = { motif: m[1], clause: m[2], info: [], rows: [], more: [], note: "" }; r.synth.push(syn); sec = "synth"; }
+      else if (line.startsWith("== specificity analysis")) { r.spec = { label: line.replace(/^== specificity analysis \(|\) ==$/g, ""), rows: [] }; sec = "spec"; }
+      else if (line.startsWith("== sensitivity analysis")) { r.sens = { label: line.replace(/^== sensitivity analysis \(|\) ==$/g, ""), rows: [] }; sec = "sens"; }
+      else if (line.startsWith("== running searches")) sec = "search";
+      else if (line.startsWith("== front end summary")) sec = "summary";
+      continue;
+    }
+    if (sec === "summary") {
+      if ((m = /^motifs: (\d+), searches: (\d+), errors: (\d+), warnings: (\d+)/.exec(line))) r.summary = { motifs: +m[1], searches: +m[2], errors: +m[3], warnings: +m[4] };
+      else if (line.startsWith("result:")) r.result = line.slice(8).trim();
+    } else if (sec === "synth" && syn) {
+      if (line.startsWith("result:")) { r.result = line.slice(8).trim(); continue; }
+      if ((m = /^  (.+?)\s{2,}([\d.e+-]+)\s+([\d.]+) \[([\d.]+),([\d.]+)\]\s+(.+)$/.exec(line))) syn.rows.push({ budgets: m[1].trim(), chance: +m[2], sens: +m[3], lo: +m[4], hi: +m[5], status: m[6].trim() });
+      else if ((m = /^  \.\.\. (.*)$/.exec(line))) syn.more.push(m[1]);
+      else if ((m = /^note: (.*)$/.exec(line))) syn.note = m[1];
+      else if ((m = /^\(chance\/unit = (.*)\)$/.exec(line))) syn.unit = m[1];
+      else if ((m = /^([a-z ]+): (.*)$/.exec(line))) syn.info.push([m[1], m[2]]);
+    } else if (sec === "spec" && r.spec) {
+      const t = line.trim().split(/\s+/);
+      if (t.length >= 6 && t[0] !== "motif" && !line.startsWith("motifs above")) {
+        const n = t.length; r.spec.rows.push({ motif: t[0], tol: t.slice(1, n - 4).join(" "), dfa: +t[n - 4], p: +t[n - 3], perMb: +t[n - 2] });
+      }
+    } else if (sec === "sens" && r.sens) {
+      if ((m = /^(\S+)\s+(.+?)\s+([\d.e+-]+)\s+([\d.]+) \[([\d.]+), ([\d.]+)\]$/.exec(line))) r.sens.rows.push({ motif: m[1], tol: m[2], perMb: +m[3], sens: +m[4], lo: +m[5], hi: +m[6] });
+    } else if (sec === "search") {
+      if ((m = /^(\S+) in "(.+?)": (\d+) record\(s\), automaton (\d+) NFA -> (\d+) DFA states, prefix "(.*)"$/.exec(line))) {
+        cur = { motif: m[1], file: m[2], records: +m[3], nfa: +m[4], dfa: +m[5], prefix: m[6], hits: [], total: 0, expected: null, bgLabel: "" };
+        r.searches.push(cur);
+      } else if (cur && (m = /^  (.*):(\d+)-(\d+) \(len (\d+)\)  (\S*)$/.exec(line))) cur.hits.push({ rec: m[1], start: +m[2], end: +m[3], len: +m[4], seq: m[5] });
+      else if (cur && (m = /^  -> (\d+) hit\(s\)/.exec(line))) cur.total = +m[1];
+      else if (cur && (m = /^  expected by chance: ([\d.]+) \((.*), (\d+) positions\)$/.exec(line))) { cur.expected = +m[1]; cur.bgLabel = m[2]; cur.positions = +m[3]; }
+    }
+  }
+  return r;
+}
+
+function parseMessages(stderr) {
+  const msgs = []; let cur = null;
+  for (const line of stderr.split("\n")) {
+    let m;
+    if ((m = /^(.+?):(\d+):(\d+): (\w+) (error|warning): (.*)$/.exec(line))) { cur = { phase: m[4], sev: m[5], line: +m[2], col: +m[3], text: m[6], snippet: [] }; msgs.push(cur); }
+    else if ((m = /^motifql: (.*)$/.exec(line))) { cur = null; msgs.push({ phase: "run", sev: /using a uniform/.test(m[1]) ? "warning" : "error", line: 0, col: 0, text: m[1], snippet: [] }); }
+    else if (cur && line.trim()) cur.snippet.push(line);
+  }
+  return msgs;
+}
+
+/* ---------- Building the command ---------- */
+function mainArgs() {
+  const a = ["--specificity"];
+  if ($("sens").checked) a.push("--sensitivity");
+  a.push("--max-rate", String(+$("maxRate").value || 1000));
+  const bg = $("bg").value; if (bg) a.push("--background", bg, "--markov", $("markov").value);
+  const st = $("sites").value; if (st) a.push("--sites", st);
+  a.push("--divergence", String((+$("div").value || 0) / 100), "--indel", String((+$("indel").value || 0) / 100));
+  a.push("--samples", String(Math.max(100, +$("samples").value || 5000)), "--seed", String(+$("seed").value || 0));
+  if ($("merge").checked) a.push("--merge-contained");
+  a.push(PROGRAM);
+  return a;
+}
+function allFiles() { return { ...state.files, [PROGRAM]: $("code").value }; }
+
+/* ---------- Run ---------- */
+let running = false, pending = false;
+async function run() {
+  if (!wasmModule) return;
+  if (running) { pending = true; return; }
+  running = true; state.version++; state.phaseCache = {};
+  setStatus(`<span class="pill run">Running</span>`);
+  await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+  const t0 = performance.now();
+  const res = await motifql(mainArgs(), allFiles());
+  const ms = performance.now() - t0;
+  const parsed = parseMain(res.stdout, res.stderr);
+  // Files named in search statements that do not exist yet.
+  const src = $("code").value; const missing = new Set();
+  for (const m of src.matchAll(/search\s+\w+\s+in\s+"([^"]+)"/g)) if (!(m[1] in state.files)) missing.add(m[1]);
+  parsed.missing = [...missing];
+  state.last = { ...parsed, ms, raw: res };
+  render();
+  if (ms > 1500 && $("auto").checked) { $("auto").checked = false; }
+  running = false;
+  if (state.tab === "compiler") showPhase(state.phase);
+  if (pending) { pending = false; run(); }
+}
+let timer = null;
+function scheduleRun() { if (!$("auto").checked) return; clearTimeout(timer); timer = setTimeout(run, 450); }
+
+/* ---------- Rendering ---------- */
+function setStatus(html) { $("status").innerHTML = html; }
+
+function render() {
+  const r = state.last; if (!r) return;
+  const nErr = r.messages.filter(m => m.sev === "error").length, nWarn = r.messages.filter(m => m.sev === "warning").length;
+  let pill;
+  if (/^ACCEPTED/.test(r.result)) pill = nErr ? `<span class="pill warn">Compiled, with problems</span>` : `<span class="pill ok">Compiled</span>`;
+  else if (r.result) pill = `<span class="pill bad">${esc(r.result.replace(/^REJECTED/, "Rejected"))}</span>`;
+  else pill = `<span class="pill bad">Could not run</span>`;
+  const s = r.summary || { motifs: 0, searches: 0 };
+  const hits = r.searches.reduce((t, x) => t + x.total, 0);
+  setStatus(`${pill}<div class="counts"><span><b>${s.motifs}</b> motifs</span><span><b>${s.searches}</b> searches</span><span><b>${hits.toLocaleString("en-US")}</b> hits</span><span><b>${nErr}</b> errors</span><span><b>${nWarn}</b> warnings</span><span>${r.ms < 1000 ? Math.round(r.ms) + " ms" : (r.ms / 1000).toFixed(1) + " s"}</span></div>`);
+  $("b-hits").textContent = hits.toLocaleString("en-US");
+  const bm = $("b-msgs"); bm.textContent = r.messages.length; bm.className = "badge" + (nErr ? " bad" : nWarn ? " warn" : "");
+  renderGutter();
+  renderHits(r); renderAnalysis(r); renderMessages(r);
+}
+
+function synthBanner(r) {
+  return r.synth.filter(s => s.note).map(s => `<div class="chosen"><span class="label">Error budgets chosen by the compiler for ${esc(s.motif)}</span><span class="big">${esc(s.note.replace(/^chose /, ""))}</span><span style="font-size:13px;color:var(--muted)">To meet: ${esc(s.clause)}. See "Chance and sensitivity" for every option it weighed.</span></div>`).join("");
+}
+
+function renderHits(r) {
+  const v = $("v-hits"); const alpha = alphabetOf($("code").value);
+  let html = synthBanner(r);
+  if (r.missing.length) html += `<div class="empty" style="padding:14px"><b>Missing sequence file${r.missing.length > 1 ? "s" : ""}: ${r.missing.map(esc).join(", ")}</b>Add ${r.missing.length > 1 ? "them" : "it"} under Sequence files with Upload FASTA or New file, using the same name as in the search statement.</div>`;
+  if (!/^ACCEPTED/.test(r.result)) {
+    v.innerHTML = html + `<div class="empty"><b>Nothing was searched</b>The program did not compile. Open Messages to see each problem; clicking one jumps to its line.</div>`;
+    return;
+  }
+  if (!r.searches.length && !r.missing.length) {
+    v.innerHTML = html + `<div class="empty"><b>No searches yet</b>Add a line such as <code>search tata in "my.fa";</code> to search one of your sequence files.</div>`;
+    return;
+  }
+  for (const s of r.searches) {
+    const recs = state.files[s.file] ? parseFasta(state.files[s.file]) : [];
+    const ratio = s.expected != null && s.expected > 0 ? s.total / s.expected : null;
+    html += `<article class="search">
+      <div class="search-h"><h3>${esc(s.motif)} <span class="in">in ${esc(s.file)}</span></h3>
+        <div class="facts"><span><b>${s.total.toLocaleString("en-US")}</b> hit${s.total === 1 ? "" : "s"}</span>
+        ${s.expected != null ? `<span>expected by chance <b>${fmt(s.expected)}</b></span>` : ""}
+        ${ratio != null && s.total > 0 ? `<span>${ratio >= 1 ? `<b>${fmt(ratio)}×</b> more than chance` : `<b>fewer</b> than chance`}</span>` : ""}
+        <span>${s.nfa} NFA → ${s.dfa} DFA states</span></div></div>
+      ${trackSVG(s, recs)}
+      ${hitTable(s, alpha)}
+      ${s.bgLabel ? `<p class="note">Chance estimate uses the ${esc(s.bgLabel)} over ${s.positions.toLocaleString("en-US")} positions.</p>` : ""}
+    </article>`;
+  }
+  v.innerHTML = html;
+  v.querySelectorAll("tr[data-k]").forEach(tr => {
+    const on = b => { const k = tr.dataset.k; v.querySelectorAll(`[data-k="${k}"]`).forEach(e => e.classList.toggle("hl", b)); };
+    tr.addEventListener("mouseenter", () => on(true)); tr.addEventListener("mouseleave", () => on(false));
+  });
+}
+
+function trackSVG(s, recs) {
+  const withHits = recs.filter(rc => s.hits.some(h => h.rec === rc.name));
+  const show = (withHits.length ? withHits : recs).slice(0, 6);
+  if (!show.length) return "";
+  const unit = alphabetOf($("code").value) === "PROTEIN" ? "aa" : "bp";
+  const rows = show.map(rc => {
+    const L = Math.max(1, rc.len); let g = `<rect x="0" y="4" width="1000" height="6" rx="3" fill="var(--surface-2)"></rect>`;
+    s.hits.forEach((h, j) => {
+      if (h.rec !== rc.name) return;
+      const x = (h.start - 1) / L * 1000, w = Math.max(3, (h.end - h.start + 1) / L * 1000);
+      g += `<rect data-k="${esc(s.motif)}-${j}" x="${x.toFixed(1)}" y="0" width="${w.toFixed(1)}" height="14" rx="2" fill="var(--accent)" opacity="0.8"><title>${h.start}–${h.end}</title></rect>`;
+    });
+    return `<div><div class="trk-l" title="${esc(rc.name)}">${esc(rc.name)} · ${rc.len.toLocaleString("en-US")} ${unit}</div><svg viewBox="0 0 1000 14" preserveAspectRatio="none" role="img" aria-label="Hit positions along ${esc(rc.name)}">${g}</svg></div>`;
+  }).join("");
+  return `<div class="track">${rows}</div>`;
+}
+
+function hitTable(s, alpha) {
+  if (!s.hits.length) return `<p class="note" style="border-top:1px solid var(--line)">No hits in this file.</p>`;
+  const cap = 400, rows = s.hits.slice(0, cap);
+  return `<div class="tablewrap"><table class="data"><thead><tr><th>Sequence</th><th class="num">Start</th><th class="num">End</th><th class="num">Length</th><th>Matched</th></tr></thead><tbody>
+    ${rows.map((h, j) => `<tr data-k="${esc(s.motif)}-${j}"><td class="recname" title="${esc(h.rec)}">${esc(h.rec)}</td><td class="num">${h.start.toLocaleString("en-US")}</td><td class="num">${h.end.toLocaleString("en-US")}</td><td class="num">${h.len}</td><td class="seqtxt">${colorSeq(h.seq, alpha)}</td></tr>`).join("")}
+  </tbody></table></div>${s.hits.length > cap ? `<p class="note">Showing the first ${cap} of ${s.hits.length.toLocaleString("en-US")} hits.</p>` : ""}`;
+}
+
+function logPos(v) { const lo = -2, hi = 6; const x = Math.log10(Math.max(v, 1e-2)); return Math.min(100, Math.max(0, (x - lo) / (hi - lo) * 100)); }
+
+function renderAnalysis(r) {
+  const v = $("v-analysis"); let html = "";
+  const maxRate = +$("maxRate").value || 1000;
+  for (const s of r.synth) {
+    const rowsHtml = s.rows.map(x => {
+      const st = /CHOSEN/.test(x.status) ? `<span class="st chosen-st">Chosen</span>` : /exceeds/.test(x.status) ? `<span class="st over">Over the limit</span>` : `<span class="st feas">Meets the limit</span>`;
+      return `<tr class="${/CHOSEN/.test(x.status) ? "hl" : ""}"><td class="mono nowrap">${esc(x.budgets)}</td><td class="num">${fmt(x.chance)}</td><td class="num">${x.sens.toFixed(3)}</td><td>${ciBar(x.sens, x.lo, x.hi)}</td><td>${st}</td></tr>`;
+    }).join("");
+    html += `<section class="sec"><h3>How the compiler chose the error budgets</h3>
+      <p class="sub">It compiled each combination of allowed errors, kept those that meet <b>${esc(s.clause)}</b>, and picked the one that finds the most real sites. Options above one it already knew failed were skipped without compiling.</p>
+      <div class="box"><dl class="meta">${s.info.map(([k, val]) => `<dt>${esc(k[0].toUpperCase() + k.slice(1))}</dt><dd>${esc(val)}</dd>`).join("")}</dl>
+      <div class="tablewrap" style="border-top:0"><table class="data"><thead><tr><th>Errors allowed</th><th class="num">Chance hits</th><th class="num">Sites found</th><th>95% interval</th><th>Result</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
+      ${s.more.length ? `<p class="note">Also weighed: ${s.more.map(esc).join("; ")}.</p>` : ""}
+      ${s.unit ? `<p class="note">Chance hits are ${esc(s.unit)}.</p>` : ""}</div></section>`;
+  }
+  if (r.spec && r.spec.rows.length) {
+    html += `<section class="sec"><h3>Chance hits for each motif</h3>
+      <p class="sub">Predicted from the compiled automaton before any search, using the ${esc(r.spec.label)}. The bar is on a log scale from 0.01 to 1,000,000 per Mb; the dark mark is your warning level of ${fmt(maxRate)} per Mb.</p>
+      <div class="box tablewrap" style="border-top:1px solid var(--line)"><table class="data"><thead><tr><th>Motif</th><th>Errors</th><th class="num">DFA states</th><th class="num">Per Mb</th><th style="min-width:160px">Scale</th></tr></thead><tbody>
+      ${r.spec.rows.map(x => `<tr><td class="mono">${esc(x.motif)}</td><td>${esc(x.tol)}</td><td class="num">${x.dfa}</td><td class="num">${fmt(x.perMb)}</td><td><div class="bar"><i class="${x.perMb > maxRate ? "over" : ""}" style="width:${logPos(x.perMb)}%"></i><span class="mark" style="left:${logPos(maxRate)}%"></span></div></td></tr>`).join("")}
+      </tbody></table></div></section>`;
+  }
+  if (r.sens && r.sens.rows.length) {
+    html += `<section class="sec"><h3>Sensitivity: real sites each motif still finds</h3>
+      <p class="sub">${/known|share/.test(r.sens.label) ? "Share of your known sites that each motif finds." : "Share of simulated real sites found after they drift from the consensus"} (${esc(r.sens.label)}).</p>
+      <div class="box tablewrap" style="border-top:1px solid var(--line)"><table class="data"><thead><tr><th>Motif</th><th>Errors</th><th class="num">Chance per Mb</th><th class="num">Sites found</th><th style="min-width:160px">95% interval</th></tr></thead><tbody>
+      ${r.sens.rows.map(x => `<tr><td class="mono">${esc(x.motif)}</td><td>${esc(x.tol)}</td><td class="num">${fmt(x.perMb)}</td><td class="num">${x.sens.toFixed(3)}</td><td>${ciBar(x.sens, x.lo, x.hi)}</td></tr>`).join("")}
+      </tbody></table></div></section>`;
+  }
+  if (!html) html = `<div class="empty"><b>No analysis to show</b>${/^ACCEPTED/.test(r.result) ? "This program defines no motifs." : "Fix the problems listed under Messages, then run again."}</div>`;
+  v.innerHTML = html;
+}
+function ciBar(p, lo, hi) { return `<div class="bar"><span class="ci" style="left:${lo * 100}%;width:${Math.max(0.5, (hi - lo) * 100)}%"></span><span class="pt" style="left:${p * 100}%"></span></div>`; }
+
+function renderMessages(r) {
+  const v = $("v-messages");
+  if (!r.messages.length) { v.innerHTML = `<div class="empty"><b>No problems found</b>The program passed lexical, syntax, semantic and chance-hit checks.</div>`; return; }
+  const phaseName = { lexical: "Lexical", syntax: "Syntax", semantic: "Semantic", specificity: "Chance hits", run: "Run" };
+  v.innerHTML = `<div class="msgs">${r.messages.map((m, i) => `<button class="msg ${m.sev}" data-i="${i}"><div class="mh"><span class="sev">${m.sev}</span><span>${phaseName[m.phase] || esc(m.phase)} check</span>${m.line ? `<span>line ${m.line}, column ${m.col}</span>` : ""}</div><div class="mt">${esc(m.text)}</div>${m.snippet.length ? `<pre>${esc(m.snippet.join("\n"))}</pre>` : ""}</button>`).join("")}</div>`;
+  v.querySelectorAll(".msg").forEach(b => b.addEventListener("click", () => { const m = r.messages[+b.dataset.i]; if (m.line) gotoLine(m.line, m.col); }));
+}
+
+/* ---------- Editor ---------- */
+function renderGutter() {
+  const n = $("code").value.split("\n").length;
+  const marks = {};
+  if (state.last) for (const m of state.last.messages) if (m.line) marks[m.line] = (marks[m.line] === "err" || m.sev === "error") ? "err" : "warn";
+  let html = ""; for (let i = 1; i <= n; i++) html += `<span class="${marks[i] || ""}">${i}</span>`;
+  $("gutter").innerHTML = html; $("gutter").scrollTop = $("code").scrollTop;
+}
+function gotoLine(line, col) {
+  const ta = $("code"), lines = ta.value.split("\n");
+  let pos = 0; for (let i = 0; i < line - 1 && i < lines.length; i++) pos += lines[i].length + 1;
+  const start = pos + Math.max(0, col - 1), end = pos + (lines[line - 1] || "").length;
+  ta.focus(); ta.setSelectionRange(start, end);
+  ta.scrollTop = Math.max(0, (line - 4) * 20);
+}
+
+/* ---------- Compiler phases ---------- */
+const PHASES = [
+  ["tokens", "Tokens", "--tokens", "Lexical analysis: the program split into tokens, each with its line and column."],
+  ["ast", "Syntax tree", "--ast", "Syntax analysis: the tree the parser builds for each motif, with the length range inferred for every node."],
+  ["symbols", "Symbol table", "--symbols", "Semantic analysis: every motif with its error allowance, length range and where it is defined."],
+  ["nfa", "NFA", "--nfa", "Intermediate code 1: Thompson's construction. Allowing k errors copies the automaton into k + 1 layers; error edges move down one layer."],
+  ["dfa", "Minimised DFA", "--dfa", "Intermediate code 2: subset construction, dead-state removal and minimisation. The matcher does one table lookup per letter."],
+  ["bytecode", "Matcher table", "--bytecode", "Target code: the transition table the matcher executes, with the length bounds and literal prefix used to speed up scanning."],
+];
+function renderPhaseTabs() {
+  $("phaseTabs").innerHTML = PHASES.map(([k, label]) => `<button class="subtab" data-p="${k}" aria-selected="${k === state.phase}">${label}</button>`).join("");
+  $("phaseTabs").querySelectorAll(".subtab").forEach(b => b.addEventListener("click", () => showPhase(b.dataset.p)));
+}
+async function showPhase(k) {
+  state.phase = k; renderPhaseTabs();
+  const ph = PHASES.find(p => p[0] === k); $("phaseNote").textContent = ph[3];
+  if (!wasmModule) return;
+  const key = k + ":" + state.version;
+  if (!state.phaseCache[key]) {
+    const extra = [];
+    const bg = $("bg").value; if (bg) extra.push("--background", bg, "--markov", $("markov").value);
+    const st = $("sites").value; if (st) extra.push("--sites", st);
+    const res = await motifql([ph[2], ...extra, "--no-search", PROGRAM], allFiles());
+    let out = res.stdout.replace(/== front end summary ==\n[\s\S]*?result: [^\n]*\n\n?/, "").replace(/== budget synthesis[\s\S]*?\nnote: [^\n]*\n\n?/g, "").trim();
+    if (!out) out = res.stderr.trim() ? "This phase produced no output because the program has errors. See Messages." : "(no output)";
+    state.phaseCache[key] = out;
+  }
+  $("phaseOut").textContent = state.phaseCache[key];
+}
+
+/* ---------- Files ---------- */
+function renderFiles() {
+  const names = Object.keys(state.files);
+  if (!names.includes(state.active)) state.active = names[0] || null;
+  $("chips").innerHTML = names.map(n => `<span class="chip" role="tab" tabindex="0" data-n="${esc(n)}" aria-selected="${n === state.active}">${esc(n)}<button class="x" data-del="${esc(n)}" aria-label="Remove ${esc(n)}">×</button></span>`).join("") || `<span class="kbd">No files. Upload a FASTA file or create a new one.</span>`;
+  $("chips").querySelectorAll(".chip").forEach(c => {
+    c.addEventListener("click", e => { if (e.target.dataset.del) return; state.active = c.dataset.n; renderFiles(); });
+    c.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); state.active = c.dataset.n; renderFiles(); } });
+  });
+  $("chips").querySelectorAll(".x").forEach(b => b.addEventListener("click", () => { delete state.files[b.dataset.del]; renderFiles(); refreshSelects(); scheduleRun(); }));
+  const has = !!state.active;
+  $("fileName").disabled = !has; $("fileText").disabled = !has;
+  $("fileName").value = has ? state.active : "";
+  $("fileText").value = has ? state.files[state.active] : "";
+  updateStat();
+}
+function updateStat() {
+  if (!state.active) { $("fileStat").textContent = ""; return; }
+  const recs = parseFasta(state.files[state.active]);
+  const total = recs.reduce((s, r) => s + r.len, 0);
+  $("fileStat").textContent = recs.length ? `${recs.length} record${recs.length > 1 ? "s" : ""} · ${total.toLocaleString("en-US")} letters` : "Not FASTA yet: start with a line like >name";
+}
+function refreshSelects() {
+  const names = Object.keys(state.files);
+  const keep = (id, first) => { const sel = $(id), v = sel.value; sel.innerHTML = `<option value="">${first}</option>` + names.map(n => `<option>${esc(n)}</option>`).join(""); sel.value = names.includes(v) ? v : ""; };
+  keep("bg", "Uniform"); keep("sites", "None");
+}
+function uniqueName(base) { let n = base, i = 2; while (n in state.files) { n = base.replace(/(\.\w+)?$/, `_${i}$1`); i++; } return n; }
+
+/* ---------- Examples ---------- */
+function loadExample(id) {
+  const ex = EXAMPLES.find(e => e.id === id) || EXAMPLES[0];
+  $("code").value = ex.program.replace(/\s+$/, "") + "\n";
+  state.files = { ...ex.files }; state.active = Object.keys(state.files)[0];
+  renderFiles(); refreshSelects();
+  $("bg").value = ex.settings.background || ""; $("markov").value = String(ex.settings.markov ?? 1); $("sites").value = ex.settings.sites || "";
+  if (ex.settings.background || ex.settings.sites) $("settings").open = true;
+  renderGutter(); run();
+}
+
+/* ---------- Wiring ---------- */
+function selectTab(t) {
+  state.tab = t;
+  document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
+  for (const k of ["hits", "analysis", "compiler", "messages"]) $("v-" + k).hidden = k !== t;
+  if (t === "compiler") showPhase(state.phase);
+}
+document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => selectTab(b.dataset.tab)));
+
+$("example").innerHTML = `<optgroup label="Examples">` + EXAMPLES.map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join("") + `</optgroup>`;
+$("example").addEventListener("change", e => loadExample(e.target.value));
+$("markov").innerHTML = [0, 1, 2, 3, 4, 5, 6].map(k => `<option value="${k}">Order ${k}</option>`).join("");
+$("markov").value = "1";
+$("run").addEventListener("click", run);
+$("code").addEventListener("input", () => { renderGutter(); scheduleRun(); });
+$("code").addEventListener("scroll", () => { $("gutter").scrollTop = $("code").scrollTop; });
+$("code").addEventListener("keydown", e => {
+  if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.metaKey) { e.preventDefault(); const ta = e.target, s = ta.selectionStart; ta.setRangeText("    ", s, ta.selectionEnd, "end"); renderGutter(); scheduleRun(); }
+});
+document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); } });
+for (const id of ["bg", "markov", "sites", "maxRate", "div", "indel", "samples", "seed", "sens", "merge"]) $(id).addEventListener("change", run);
+
+$("fileText").addEventListener("input", e => { if (!state.active) return; state.files[state.active] = e.target.value; updateStat(); scheduleRun(); });
+$("fileName").addEventListener("change", e => {
+  const nn = e.target.value.trim(); if (!state.active || !nn || nn === state.active) { e.target.value = state.active || ""; return; }
+  if (nn in state.files) { e.target.value = state.active; return; }
+  const content = state.files[state.active]; const rebuilt = {};
+  for (const [k, v] of Object.entries(state.files)) rebuilt[k === state.active ? nn : k] = v;
+  state.files = rebuilt; state.active = nn; renderFiles(); refreshSelects(); run();
+});
+$("newFile").addEventListener("click", () => { const n = uniqueName("my_sequences.fa"); state.files[n] = ">my_sequence\n"; state.active = n; renderFiles(); refreshSelects(); $("fileText").focus(); });
+async function addUploads(list) {
+  for (const f of list) {
+    if (f.size > 60e6) { setStatus(`<span class="pill bad">${esc(f.name)} is ${(f.size / 1e6).toFixed(0)} MB; files up to 60 MB work in the browser</span>`); continue; }
+    const text = await f.text(); const n = uniqueName(f.name.replace(/[^\w.\-]/g, "_"));
+    state.files[n] = text; state.active = n;
+  }
+  renderFiles(); refreshSelects(); run();
+}
+$("upload").addEventListener("change", e => { addUploads([...e.target.files]); e.target.value = ""; });
+const fp = $("filesPanel");
+fp.addEventListener("dragover", e => { e.preventDefault(); fp.classList.add("drop"); });
+fp.addEventListener("dragleave", () => fp.classList.remove("drop"));
+fp.addEventListener("drop", e => { e.preventDefault(); fp.classList.remove("drop"); if (e.dataTransfer.files.length) addUploads([...e.dataTransfer.files]); });
+
+renderPhaseTabs();
+loadCompiler().then(() => loadExample(EXAMPLES[0].id)).catch(e => setStatus(`<span class="pill bad">This browser could not start the compiler: ${esc(e.message)}</span>`));
+</script>

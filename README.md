@@ -31,6 +31,16 @@ make test       # 41 tests, including a brute-force oracle (needs python3)
 make demo
 ```
 
+## Try it in your browser
+
+The **MotifQL Playground** runs the real compiler, compiled to WebAssembly, in any modern browser:
+**https://vedika13-code.github.io/motifql/**
+
+Write a motif, upload FASTA files, and see hits, predicted chance hits, sensitivity, the budgets the
+compiler chooses, and every compiler phase (tokens, syntax tree, symbol table, NFA, DFA). Nothing is
+uploaded; sequences stay on your machine. The page is `docs/index.html`; to rebuild it, run
+`web/build-wasm.sh` (needs wasi-sdk) and then `python3 web/build.py`.
+
 ## Live demo
 
 ```
