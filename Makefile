@@ -1,14 +1,15 @@
 CC = gcc
-CFLAGS = -std=c11 -Wall -Wextra -g -O0
+CFLAGS = -std=c11 -Wall -Wextra -g -O2
+LDLIBS = -lm
 SRC = src/alphabet.c src/lexer.c src/ast.c src/symtab.c src/diagnostics.c src/parser.c src/sema.c \
-      src/nfa.c src/dfa.c src/codegen.c src/fasta.c src/matcher.c src/specificity.c src/main.c
+      src/nfa.c src/dfa.c src/codegen.c src/fasta.c src/matcher.c src/specificity.c src/sensitivity.c src/synthesis.c src/main.c
 BIN = build/motifql
 
 all: $(BIN)
 
 $(BIN): $(SRC) src/*.h
 	@mkdir -p build
-	$(CC) $(CFLAGS) $(SRC) -o $(BIN)
+	$(CC) $(CFLAGS) $(SRC) -o $(BIN) $(LDLIBS)
 
 test: $(BIN)
 	@bash tests/run_tests.sh

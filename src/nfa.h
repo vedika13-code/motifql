@@ -35,6 +35,9 @@ typedef struct {
     SymMask mask;    /* NFA_CONSUME only */
     int out1;        /* NFA_SPLIT: first branch. NFA_CONSUME: target after consuming. */
     int out2;        /* NFA_SPLIT: second branch. Unused otherwise. */
+    int pos;         /* NFA_CONSUME: 0-based residue position in the motif's own
+                      * sequence, in construction order; -1 for synthetic states.
+                      * Used by `allow k ... at P` (position-restricted errors). */
 } NfaState;
 
 typedef struct {
@@ -51,6 +54,7 @@ typedef struct {
      * to. layer_count is 1 for an NFA with no mismatch tolerance. */
     int layer_count;
     int states_per_layer;
+    int next_pos;    /* next residue position to assign while building */
 } Nfa;
 
 void nfa_init(Nfa *nfa, AlphabetKind alphabet);
@@ -73,6 +77,11 @@ void nfa_apply_mismatch_tolerance(const Nfa *plain, int k, Nfa *out);
  * insertion and deletion edges (Levenshtein distance), with every
  * inserted or substituted residue restricted to the alphabet. */
 void nfa_apply_error_tolerance(const Nfa *plain, int k, ErrorModel model, Nfa *out);
+
+/* As above, but errors may only occur at the residue positions whose
+ * bits are set in `positions` (bit i = position i+1 as written).
+ * positions == 0 means every position. */
+void nfa_apply_error_tolerance_at(const Nfa *plain, int k, ErrorModel model, uint32_t positions, Nfa *out);
 
 void nfa_print(const Nfa *nfa);
 

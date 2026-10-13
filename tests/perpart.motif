@@ -1,0 +1,16 @@
+// Per-part budgets: a referenced motif keeps its own error budget
+// inside a composite. perpart.fa has three planted promoters:
+//   11  exact TATA box ... exact Kozak
+//   70  TATA box with one base deleted ... exact Kozak
+//  129  exact TATA box ... Kozak with one base deleted
+alphabet DNA;
+
+motif tata  = "TATAWAWR" allow 1 edits;
+motif kozak = "RCCATGG";
+motif promoter { @tata "N"{20,40} @kozak }
+
+motif tata0  = "TATAWAWR";
+motif strict { @tata0 "N"{20,40} @kozak }
+
+search promoter in "perpart.fa";
+search strict   in "perpart.fa";

@@ -1,0 +1,77 @@
+E1: chance-hit prediction on chr21 (hg38)
+
+background fitted on chr21:1-28,000,000 (19,388,751 non-N positions); predictions checked on chr21:28,000,001-end (18,649,820 non-N positions)
+
+Part 1: order-1 surrogate of chr21 (tests the method)
+motif      pattern         tolerance         predicted  observed obs/pred
+TATA_box   TATAWAWR        exact                  2985      3014     1.01
+TATA_box   TATAWAWR        allow 1 edits        112200    112407     1.00
+CAAT_box   CCAAT           exact                 16120     16072     1.00
+E_box      CACGTG          exact                   311       328     1.06
+E_box      CACGTG          allow 1 edits         42280     42517     1.01
+AP1        TGASTCA         exact                  1716      1713     1.00
+CRE        TGACGTCA        exact                    30        22     0.74
+CRE        TGACGTCA        allow 1 mismatch       2004      2000     1.00
+NFkB       GGGRNTTYCC      exact                   149       155     1.04
+GC_box     GGGGCGGGG       exact                     3         1     0.40
+polyA      AATAAA          exact                  8533      8482     0.99
+polyA      AATAAA          allow 1 edits        192000    191083     1.00
+Kozak      GCCRCCATGG      exact                     8         8     1.06
+Kozak      GCCRCCATGG      allow 1 edits           443       436     0.98
+p53_half   RRRCWWGYYY      exact                  3584      3443     0.96
+CTCF_core  CCGCGNGGNGGCAG  exact                     0         0     0.00
+CTCF_core  CCGCGNGGNGGCAG  allow 1 edits             1         0     0.00
+EcoRI      GAATTC          exact                  3695      3698     1.00
+
+Part 2: real chr21 (method plus biology), observed / predicted for each background order
+motif      pattern         tolerance          observed     o0     o1     o3     o5    emp
+TATA_box   TATAWAWR        exact                 10915   1.05   1.96   0.91   0.67   0.61
+TATA_box   TATAWAWR        allow 1 edits        219995   0.75   1.05   0.70   0.64   0.63
+CAAT_box   CCAAT           exact                 14156   0.70   0.47   0.74   0.85   0.85
+E_box      CACGTG          exact                  3049   1.32   5.26   1.81   2.09   2.09
+E_box      CACGTG          allow 1 edits        159377   1.48   2.02   1.52   1.44   1.43
+AP1        TGASTCA         exact                  3186   1.35   1.00   1.25   1.22   1.07
+CRE        TGACGTCA        exact                    87   0.39   1.57   1.35   2.02   1.97
+CRE        TGACGTCA        allow 1 mismatch       6713   1.12   1.80   1.92   1.81   1.39
+NFkB       GGGRNTTYCC      exact                   418   3.83   1.51   1.37   1.62   1.52
+GC_box     GGGGCGGGG       exact                   268  48.61  56.82  18.49   7.53   3.10
+polyA      AATAAA          exact                 18539   1.12   1.16   0.82   0.67   0.67
+polyA      AATAAA          allow 1 edits        356226   1.01   0.99   0.79   0.74   0.74
+Kozak      GCCRCCATGG      exact                    50   6.40   3.55   2.40   1.41   1.44
+Kozak      GCCRCCATGG      allow 1 edits          3928   7.71   4.75   3.58   2.79   1.83
+p53_half   RRRCWWGYYY      exact                  5185   1.29   0.78   0.92   0.97   1.08
+CTCF_core  CCGCGNGGNGGCAG  exact                     0   0.00   0.00   0.00   0.00   0.00
+CTCF_core  CCGCGNGGNGGCAG  allow 1 edits            71  11.80  36.09   7.41   3.26   1.72
+EcoRI      GAATTC          exact                  4647   0.75   0.67   0.81   0.85   0.85
+
+median |log2(observed/predicted)| over motifs with >= 20 hits: order 0: 0.43, order 1: 0.84, order 3: 0.46, order 5: 0.59, empirical: 0.57
+(surrogate: 10,000,000 positions drawn from the order-1 model of the training half)
+
+E2: budget synthesis on planted promoters in real chr21 sequence
+
+250 planted sites (10% substitution, 2% indel) in chr21:32,000,001-37,000,000; background fitted on chr21:1-28,000,000
+
+chance-hit rates from: order 1 (fitted on / scanned over chr21:1-28,000,000)
+configuration              budgets chosen                   recall  pred false/100kb   pred
+exact (0, 0)               -                                 0.204  0.19        0.04   0.07   (0.5 s)
+hand-picked (1, 1)         -                                 0.732  0.70       80.08  71.75   (0.6 s)
+hand-picked (2, 2)         -                                 0.992  0.96     4665.92 5516.67   (1.1 s)
+synthesised, <= 2/100kb    tata = 0 edits, kozak = 1 edit    0.368  0.36        3.96   1.89   (0.6 s)
+synthesised, <= 20/100kb   tata = 0 edits, kozak = 2 edits   0.440  0.42       25.32  14.54   (1.1 s)
+
+chance-hit rates from: order 5 (fitted on / scanned over chr21:1-28,000,000)
+configuration              budgets chosen                   recall  pred false/100kb   pred
+exact (0, 0)               -                                 0.204  0.19        0.04   0.21   (0.5 s)
+hand-picked (1, 1)         -                                 0.732  0.70       80.08 131.84   (0.7 s)
+hand-picked (2, 2)         -                                 0.992  0.96     4665.92 6585.20   (1.6 s)
+synthesised, <= 2/100kb    tata = 0 edits, kozak = 0 edits   0.204  0.19        0.04   0.21   (0.6 s)
+synthesised, <= 20/100kb   tata = 1 edit, kozak = 0 edits    0.416  0.36        2.28   4.44   (1.1 s)
+
+chance-hit rates from: empirical (fitted on / scanned over chr21:1-28,000,000)
+configuration              budgets chosen                   recall  pred false/100kb   pred
+exact (0, 0)               -                                 0.204  0.19        0.04   0.14   (1.2 s)
+hand-picked (1, 1)         -                                 0.732  0.70       80.08  85.92   (2.5 s)
+hand-picked (2, 2)         -                                 0.992  0.96     4665.92 5513.82   (4.4 s)
+synthesised, <= 2/100kb    tata = 0 edits, kozak = 0 edits   0.204  0.19        0.04   0.14   (2.5 s)
+synthesised, <= 20/100kb   tata = 1 edit, kozak = 0 edits    0.416  0.36        2.28   2.93   (6.7 s)
+

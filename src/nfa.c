@@ -24,6 +24,7 @@ static int nfa_add_state(Nfa *nfa, NfaKind kind) {
     s->mask = 0;
     s->out1 = -1;
     s->out2 = -1;
+    s->pos = -1;
     return nfa->count++;
 }
 
@@ -99,6 +100,7 @@ static Frag frag_epsilon(Nfa *nfa) {
 static Frag frag_symbol(Nfa *nfa, SymMask mask) {
     int s = nfa_add_state(nfa, NFA_CONSUME);
     nfa->states[s].mask = mask;
+    nfa->states[s].pos = nfa->next_pos++;
     Frag f;
     f.start = s;
     f.dangling = (PatchList){0};
@@ -156,6 +158,32 @@ static Frag frag_quest(Nfa *nfa, Frag a) {
 
 static Frag build_fragment(Nfa *nfa, Program *program, Node *node);
 
+/* Copies a complete, separately built NFA into `nfa` as a fragment.
+ * Every MATCH state of the copy becomes an epsilon exit (a SPLIT whose
+ * first arrow is left dangling), so whatever follows the fragment is
+ * reachable from every layer the copy finished in. Used for a
+ * referenced motif that carries its own error budget: the reference
+ * is built and layered on its own, then dropped into place, so its
+ * budget applies to its own span and nowhere else. */
+static Frag frag_embed(Nfa *nfa, const Nfa *sub) {
+    int offset = nfa->count;
+    Frag f;
+    f.dangling = (PatchList){0};
+    for (int i = 0; i < sub->count; i++) {
+        const NfaState *src = &sub->states[i];
+        int s = nfa_add_state(nfa, src->kind == NFA_MATCH ? NFA_SPLIT : src->kind);
+        if (src->kind == NFA_MATCH) {
+            patchlist_push(&f.dangling, s, 1);
+        } else {
+            nfa->states[s].mask = src->mask;
+            nfa->states[s].out1 = src->out1 >= 0 ? src->out1 + offset : -1;
+            nfa->states[s].out2 = src->out2 >= 0 ? src->out2 + offset : -1;
+        }
+    }
+    f.start = sub->start + offset;
+    return f;
+}
+
 /* Bounded/unbounded repetition, unrolled into `min` mandatory copies
  * followed either by one starred copy (unbounded) or (max-min)
  * quest-wrapped optional copies (bounded). Each copy is a FRESH call
@@ -212,10 +240,23 @@ static Frag build_fragment(Nfa *nfa, Program *program, Node *node) {
         case NODE_REPEAT:
             return build_repeat(nfa, program, node->children[0], node->repeat_min, node->repeat_max);
 
-        case NODE_REF:
+        case NODE_REF: {
             /* Inlined expansion: safe because Phase 1 already proved
-             * the reference graph acyclic. */
-            return build_fragment(nfa, program, program->motifs[node->ref_index].pattern);
+             * the reference graph acyclic. A referenced motif with its
+             * own `allow k ...` keeps that budget inside the composite
+             * (per-part budgets): it is built and layered separately,
+             * then embedded. */
+            MotifDef *target = &program->motifs[node->ref_index];
+            if (target->mismatch_budget <= 0) return build_fragment(nfa, program, target->pattern);
+            Nfa sub_plain, sub_layered;
+            nfa_build_for_motif(program, node->ref_index, &sub_plain);
+            nfa_apply_error_tolerance_at(&sub_plain, target->mismatch_budget, target->error_model,
+                                         target->error_positions, &sub_layered);
+            Frag f = frag_embed(nfa, &sub_layered);
+            nfa_free(&sub_layered);
+            nfa_free(&sub_plain);
+            return f;
+        }
     }
     return frag_epsilon(nfa);
 }
@@ -302,6 +343,10 @@ static void mark_initial_consumes(const Nfa *nfa, bool *initial) {
 }
 
 void nfa_apply_error_tolerance(const Nfa *plain, int k, ErrorModel model, Nfa *out) {
+    nfa_apply_error_tolerance_at(plain, k, model, 0, out);
+}
+
+void nfa_apply_error_tolerance_at(const Nfa *plain, int k, ErrorModel model, uint32_t positions, Nfa *out) {
     int n = plain->count;
     bool *initial = calloc((size_t)n, sizeof(bool));
     if (model == ERR_EDIT) mark_initial_consumes(plain, initial);
@@ -345,10 +390,15 @@ void nfa_apply_error_tolerance(const Nfa *plain, int k, ErrorModel model, Nfa *o
                 int normal = nfa_add_state(out, NFA_CONSUME);
                 out->states[normal].mask = src->mask;
                 out->states[normal].out1 = target;
+                out->states[normal].pos = src->pos;
 
                 out->states[self].out1 = normal;
 
-                if (layer < layers - 1) {
+                /* `at P`: errors only at the listed motif positions. */
+                bool error_here = positions == 0 ||
+                                  (src->pos >= 0 && src->pos < 32 && ((positions >> src->pos) & 1u));
+
+                if (layer < layers - 1 && error_here) {
                     SymMask full = ((SymMask)1u << alphabet_size(plain->alphabet)) - 1u;
                     SymMask complement = full & ~src->mask;
                     int mismatch_target = MAPPED(layer + 1, src->out1);

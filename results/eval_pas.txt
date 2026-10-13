@@ -1,0 +1,32 @@
+E3: polyadenylation signals at annotated 3' ends (chr21_gencode.gtf)
+203 positive windows (60 nt upstream of each distinct 3' end), 2030 training and 2030 held-out control windows (123,830 bp)
+
+Held-out evaluation: 20 random splits of the 203 3' ends into 101 training sites (shown to the compiler) and 102 test sites
+
+configuration                             test recall   ctrl/kb  ctrl hit  enrich   most often chosen
+exact AATAAA                              0.547±0.027      1.18     0.065    8.41   
+expert: AATAAA | ATTAAA                   0.634±0.030      1.95     0.106    5.96   
+expert: 12 known variants                 0.776±0.039      8.36     0.363    2.14   
+AATAAA, 1 mismatch                        0.822±0.030     15.42     0.471    1.74   
+AATAAA, 1 edit                            0.852±0.030     23.24     0.503    1.69   
+learned budget, <= 2/kb                   0.547±0.027      1.18     0.065    8.41   0 mismatches (20/20)
+learned budget + positions, <= 2/kb       0.547±0.027      1.18     0.065    8.41   0 mismatches (20/20)
+learned budget, <= 3/kb                   0.547±0.027      1.18     0.065    8.41   0 mismatches (20/20)
+learned budget + positions, <= 3/kb       0.657±0.038      2.99     0.156    4.21   1 mismatch at 2 (19/20)
+learned budget, <= 4/kb                   0.547±0.027      1.18     0.065    8.41   0 mismatches (20/20)
+learned budget + positions, <= 4/kb       0.657±0.038      2.99     0.156    4.21   1 mismatch at 2 (19/20)
+learned budget, <= 6/kb                   0.547±0.027      1.18     0.065    8.41   0 mismatches (20/20)
+learned budget + positions, <= 6/kb       0.725±0.035      6.37     0.283    2.56   1 mismatch at 2,5,6 (16/20)
+learned budget, <= 8/kb                   0.547±0.027      1.18     0.065    8.41   0 mismatches (20/20)
+learned budget + positions, <= 8/kb       0.743±0.036      8.37     0.357    2.08   2 mismatches at 2,5 (8/20)
+learned budget, <= 12/kb                  0.547±0.027      1.18     0.065    8.41   0 mismatches (20/20)
+learned budget + positions, <= 12/kb      0.766±0.037     10.56     0.388    1.97   1 mismatch at 1,2,3,5 (5/20)
+learned budget, <= 16/kb                  0.822±0.030     15.42     0.471    1.74   1 mismatch (20/20)
+learned budget + positions, <= 16/kb      0.821±0.033     16.21     0.562    1.46   2 mismatches at 1,4,6 (13/20)
+PWM baseline, <= 2/kb                     0.580±0.044      1.62     0.089    6.54
+PWM baseline, <= 3/kb                     0.624±0.040      2.72     0.147    4.25
+PWM baseline, <= 4/kb                     0.662±0.034      3.78     0.190    3.49
+PWM baseline, <= 6/kb                     0.699±0.031      5.62     0.256    2.73
+PWM baseline, <= 8/kb                     0.732±0.025      8.06     0.308    2.37
+PWM baseline, <= 12/kb                    0.798±0.031     12.89     0.419    1.90
+PWM baseline, <= 16/kb                    0.834±0.030     17.28     0.509    1.64

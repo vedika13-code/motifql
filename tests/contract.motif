@@ -1,0 +1,4 @@
+// A 'require' clause with no free budget is checked, not solved.
+alphabet DNA;
+motif polyA = "AATAAA" allow 1 edits require rate <= 100 per Mb;
+search polyA in "edits.fa";

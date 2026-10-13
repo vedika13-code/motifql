@@ -1,0 +1,4 @@
+// The compiler chooses the budget AND the positions from known sites.
+alphabet DNA;
+motif pas = "AATAAA" allow ? mismatch at ? require rate <= 40 per kb;
+search pas in "positions.fa";

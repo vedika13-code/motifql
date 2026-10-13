@@ -1,0 +1,9 @@
+// The compiler chooses the error budgets from a stated limit:
+// at most 2 chance hits per 100,000 letters, scored on sites
+// that have drifted 10% from the consensus.
+alphabet DNA;
+motif tata  = "TATAWAWR" allow ? edits;
+motif kozak = "RCCATGG"  allow ? edits;
+motif promoter { @tata "N"{20,40} @kozak }
+    require rate <= 2 per 100kb, divergence 10%;
+search promoter in "perpart.fa";

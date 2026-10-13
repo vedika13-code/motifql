@@ -1,0 +1,4 @@
+// No budget can meet this target: even the exact 4-mer is too common.
+alphabet DNA;
+motif gatc = "GATC" allow ? mismatch require rate <= 1 per Mb;
+search gatc in "edits.fa";

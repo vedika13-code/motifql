@@ -1,0 +1,5 @@
+  mismatch: 994 cases, 24917 oracle hit positions
+  edit    : 1006 cases, 50370 oracle hit positions
+oracle agreement: 2000 agree, 0 disagree, 0 rejected at compile time
+composite per-part budgets: 470 agree, 0 disagree (600 oracle hit positions)
+position-restricted errors: 500 agree, 0 disagree (5073 oracle hit positions)

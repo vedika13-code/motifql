@@ -53,7 +53,9 @@ void symtab_print(Program *program) {
             snprintf(lenbuf, sizeof(lenbuf), "%d..%d", m->min_len, m->max_len);
         }
         char tolbuf[24];
-        if (m->mismatch_budget == 0) snprintf(tolbuf, sizeof(tolbuf), "exact");
+        if (m->mismatch_budget == BUDGET_FREE) snprintf(tolbuf, sizeof(tolbuf), "? %s",
+                      m->error_model == ERR_EDIT ? "edit" : "mism");
+        else if (m->mismatch_budget == 0) snprintf(tolbuf, sizeof(tolbuf), "exact");
         else snprintf(tolbuf, sizeof(tolbuf), "%d %s", m->mismatch_budget,
                       m->error_model == ERR_EDIT ? "edit" : "mism");
         printf("%-4d %-16.*s %-10s %-10s %-9s line %d\n",

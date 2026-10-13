@@ -1,0 +1,7 @@
+// Three semantic mistakes the compiler must catch.
+alphabet DNA;
+motif b     = "GAAXTC";               // X is not a DNA letter
+motif short = "TAG" allow 3 edits;    // 3 deletions would match nothing
+search b     in "demo.fa";
+search short in "demo.fa";
+search d     in "demo.fa";            // d was never defined

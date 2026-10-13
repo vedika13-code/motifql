@@ -83,10 +83,15 @@ Phase 2 was then extended to follow the updated research proposal:
 
 The suite now has 26 tests.
 
-## Phase 3 plan
+## Phase 3 status
 
-- sensitivity analysis: probability that a diverged true site is still
-  found, under a stated substitution and indel model
-- per-sub-motif error budgets and budget synthesis from a
-  `require rate <= ...` clause
-- evaluation on real sequence (human chromosome 21), final report
+Implemented and tested (36 tests):
+
+- per-part budgets: a referenced motif keeps its own `allow k ...`
+  inside a composite
+- sensitivity analysis (`--sensitivity`): share of diverged sites found
+- budget synthesis: `allow ? edits` plus `require rate <= R per N unit`
+- Markov backgrounds of order 0..6 and empirical rates (`--empirical`)
+- evaluation on hg38 chromosome 21 (`tools/eval_chr21.py`)
+
+See `docs/PHASE3.md`.

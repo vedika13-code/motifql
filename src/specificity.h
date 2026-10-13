@@ -27,29 +27,38 @@
  * Salvy and Flajolet (2002) and Nuel (2008), applied to the automaton
  * MotifQL already builds.
  *
- * Two background models:
+ * Background models are Markov chains of order k:
  *   order 0 -- residues independent, with fixed frequencies
  *   order 1 -- each residue depends on the one before it (captures
  *              effects such as CpG depletion in vertebrate genomes)
+ *   order k -- each residue depends on the k before it (up to
+ *              BG_MAX_ORDER for nucleotides, 1 for protein)
+ * For order k the probability mass is tracked per (DFA state, last k
+ * residues), so the cost grows as 4^k; k <= 6 keeps it small.
  */
 
 #define BG_MAX 32
+#define BG_MAX_ORDER 6
 
 typedef struct {
     AlphabetKind alphabet;
     int size;
-    int order;                    /* 0 or 1 */
+    int order;                    /* k */
+    int contexts;                 /* size^k */
     double p0[BG_MAX];            /* residue frequencies */
-    double p1[BG_MAX][BG_MAX];    /* p1[a][b] = P(next = b | previous = a); order 1 only */
-    char source[128];             /* human-readable description for reports */
+    double *init;                 /* [contexts]: frequency of each k-residue context */
+    double *trans;                /* [contexts * size]: P(next residue | context) */
+    char source[160];             /* human-readable description for reports */
 } Background;
+
+void background_free(Background *bg);
 
 void background_uniform(Background *bg, AlphabetKind alphabet);
 
-/* Estimates an order-0 or order-1 background from the residues of a
- * FASTA file. Residues outside the alphabet (N runs, soft gaps) are
- * skipped and also break order-1 context. Returns false if the file
- * contains no usable residues. */
+/* Estimates an order-k background from the residues of a FASTA file.
+ * Residues outside the alphabet (N runs) are skipped and break the
+ * context. k is clamped to BG_MAX_ORDER (1 for protein). Returns false
+ * if the file contains no usable residues. */
 bool background_from_fasta(Background *bg, AlphabetKind alphabet, const FastaFile *f, int order,
                            const char *label);
 
@@ -57,6 +66,25 @@ bool background_from_fasta(Background *bg, AlphabetKind alphabet, const FastaFil
  * position of a random sequence drawn from `bg`. Multiply by the
  * number of start positions for the expected number of chance hits. */
 double specificity_hit_probability(const MatcherProgram *mp, const Background *bg);
+
+/* Empirical alternative: the fraction of positions in a reference
+ * sequence where the matcher actually reports a hit. Makes no Markov
+ * assumption, so it captures repeats, CpG islands and other structure
+ * a background model misses -- at the cost of scanning the reference
+ * once per evaluation. The reference should NOT be the sequence being
+ * searched, or the estimate simply restates the answer. */
+double specificity_empirical_rate(const MatcherProgram *mp, const FastaFile *reference);
+
+/* Where a chance-hit rate comes from: a background model, or (when
+ * `reference` is set) an empirical scan of a reference sequence. */
+typedef struct {
+    const Background *background;
+    const FastaFile *reference;
+    const char *reference_label;
+} RateSource;
+
+double rate_of(const MatcherProgram *mp, const RateSource *src);
+const char *rate_source_text(const RateSource *src, char *buf, size_t n);
 
 /* Counts the start positions in a FASTA file that the matcher could
  * use (a residue of the alphabet at that position), so an expected

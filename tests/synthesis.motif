@@ -1,0 +1,11 @@
+// Budget synthesis: the compiler chooses how many errors each part may
+// have, so that the composite meets a stated false-hit target.
+alphabet DNA;
+
+motif tata  = "TATAWAWR" allow ? edits;
+motif kozak = "RCCATGG"  allow ? edits;
+
+motif promoter { @tata "N"{20,40} @kozak }
+    require rate <= 2 per 100kb, divergence 10%;
+
+search promoter in "perpart.fa";

@@ -1,0 +1,17 @@
+Experiment A: 5 Mb uniform random DNA
+motif         predicted  observed  obs/pred
+ecori            1216.4      1257     1.033
+ecori_mm1       23148.1     23189     1.002
+ecori_ed1       39895.1     40131     1.006
+polya_ed1       33431.5     33342     0.997
+tata              611.2       628     1.028
+tata_mm1        11603.8     11716     1.010
+tata_ed1        22371.4     22598     1.010
+tata_ed2       251954.5    252647     1.003
+ebox_sp           458.9       477     1.039
+
+Experiment B: 5 Mb CpG-depleted DNA (order-1 source)
+motif        order-0 pred order-1 pred  observed
+hpaii             14245.0       6510.0      6415
+gcgc_mm1          16140.0       3973.5      3951
+tata_ed1          30520.0      24795.0     24781

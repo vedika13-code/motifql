@@ -1,0 +1,4 @@
+// No budget can meet this: even the exact 4-letter site is too common.
+alphabet DNA;
+motif gatc = "GATC" allow ? mismatch require rate <= 1 per Mb;
+search gatc in "demo.fa";

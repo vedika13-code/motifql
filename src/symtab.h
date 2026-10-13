@@ -39,6 +39,9 @@ typedef enum {
     ERR_EDIT,
 } ErrorModel;
 
+/* `allow ? edits`: a budget the compiler chooses (budget synthesis). */
+#define BUDGET_FREE (-2)
+
 typedef struct {
     const char *name;      /* points into the source buffer */
     int name_length;
@@ -48,6 +51,19 @@ typedef struct {
     Node *pattern;         /* root of this motif's AST */
     int mismatch_budget;   /* k from `allow k mismatch` or `allow k edits`, 0 if absent */
     ErrorModel error_model;/* which kind of error the budget counts (see below) */
+    uint32_t error_positions; /* `at 1,2,5`: bit i set = errors allowed at position i+1; 0 = anywhere */
+    bool positions_free;   /* `at ?`: the compiler chooses the positions (budget synthesis) */
+
+    /* `require rate <= R per [N] unit [, divergence P%]` -- a statistical
+     * contract on this motif. With `allow ? ...` budgets somewhere in
+     * the motif (or the motifs it references), the compiler chooses
+     * those budgets to meet the contract; otherwise it checks it. */
+    bool has_requirement;
+    double required_rate;  /* maximum expected chance hits per position */
+    double required_rate_shown;     /* as written, e.g. 2 */
+    char required_unit[40];         /* as written, e.g. "100kb" */
+    double divergence;     /* substitution rate for sensitivity; < 0 = use the default */
+    int require_line, require_column;
 
     /* filled by semantic analysis */
     int min_len;

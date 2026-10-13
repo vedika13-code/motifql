@@ -1,0 +1,18 @@
+// Semantic errors for budget synthesis.
+alphabet DNA;
+
+// Error: a free budget that no 'require' clause governs.
+motif orphan = "GATTACA" allow ? edits;
+
+// Error: one free budget governed by two contracts.
+motif shared = "TATAWAWR" allow ? edits;
+motif first  { @shared "N"{5,10} "CCAAT" } require rate <= 1 per Mb;
+motif second { "GGGCGG" "N"{5,10} @shared } require rate <= 1 per Mb;
+
+// Error: a rate of zero can never be met.
+motif never = "CACGTG" require rate <= 0 per Mb;
+
+search first in "edits.fa";
+search second in "edits.fa";
+search never in "edits.fa";
+search orphan in "edits.fa";

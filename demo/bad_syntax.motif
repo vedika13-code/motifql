@@ -1,0 +1,3 @@
+alphabet DNA;
+motif c = "GAATTC" allow 2 mismatches;   // keyword is 'mismatch'
+search c in "demo.fa";

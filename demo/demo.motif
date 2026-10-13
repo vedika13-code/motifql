@@ -1,0 +1,8 @@
+// Demo: one small motif, shown through every compiler phase.
+alphabet DNA;
+
+motif site = "GAATTC";                    // EcoRI site, exact
+motif site_mm = "GAATTC" allow 1 mismatch;
+
+search site    in "demo.fa";
+search site_mm in "demo.fa";

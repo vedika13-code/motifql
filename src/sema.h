@@ -30,6 +30,17 @@
  * Returns true only when no errors were reported. Warnings (unused
  * motifs) do not fail the compile.
  */
+/* Recomputes inferred match lengths, e.g. after budget synthesis has
+ * changed some motifs' error budgets. */
+void sema_recompute_lengths(Program *program);
+
+/* Index of the one motif whose `require` clause governs the free
+ * budget of motif `free_index`: -1 if none, -2 if more than one. */
+int sema_governing_requirement(Program *program, int free_index);
+
+/* Length of a motif that is a fixed run of residues, or -1. */
+int sema_linear_length(const MotifDef *m);
+
 bool analyze_program(Program *program, Diagnostics *diag);
 
 #endif

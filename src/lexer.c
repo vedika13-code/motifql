@@ -17,6 +17,9 @@ const char *token_type_name(TokenType type) {
         case TK_ALLOW:     return "ALLOW";
         case TK_MISMATCH:  return "MISMATCH";
         case TK_EDITS:     return "EDITS";
+        case TK_REQUIRE:   return "REQUIRE";
+        case TK_LE:        return "LE";
+        case TK_PERCENT:   return "PERCENT";
         case TK_IDENT:     return "IDENT";
         case TK_NUMBER:    return "NUMBER";
         case TK_STRING:    return "STRING";
@@ -108,6 +111,7 @@ static TokenType keyword_type(const char *start, int length) {
         {"mismatch", 8, TK_MISMATCH},
         {"edits",    5, TK_EDITS},
         {"edit",     4, TK_EDITS},
+        {"require",  7, TK_REQUIRE},
         {NULL, 0, TK_IDENT},
     };
     for (int i = 0; keywords[i].word; i++) {
@@ -190,6 +194,10 @@ Token lexer_next_token(Lexer *lx) {
         case ',': return make_token(lx, TK_COMMA);
         case ';': return make_token(lx, TK_SEMICOLON);
         case '=': return make_token(lx, TK_EQUAL);
+        case '%': return make_token(lx, TK_PERCENT);
+        case '<':
+            if (peek(lx) == '=') { advance_char(lx); return make_token(lx, TK_LE); }
+            return error_token(lx, "expect '<=' (MotifQL has no plain '<')");
         default:  return error_token(lx, "unexpected character");
     }
 }

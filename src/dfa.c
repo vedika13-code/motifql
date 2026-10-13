@@ -172,8 +172,9 @@ void dfa_from_nfa(const Nfa *nfa, Dfa *out) {
     }
 
     out->count = ds.count;
-    out->transitions = realloc(transitions, sizeof(int) * (size_t)(ds.count * alpha));
-    out->accepting = calloc((size_t)ds.count, sizeof(bool));
+    size_t nstates = ds.count > 0 ? (size_t)ds.count : 1;   /* count is never negative; this keeps -O2's range analysis quiet */
+    out->transitions = realloc(transitions, sizeof(int) * nstates * (size_t)alpha);
+    out->accepting = calloc(nstates, sizeof(bool));
     for (int i = 0; i < ds.count; i++) {
         out->accepting[i] = set_has_match(nfa, &ds.keys[i]);
         intset_free(&ds.keys[i]);

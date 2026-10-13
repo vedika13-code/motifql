@@ -5,7 +5,7 @@
 
 typedef enum {
     /* keywords */
-    TK_ALPHABET, TK_MOTIF, TK_SEARCH, TK_IN, TK_ALLOW, TK_MISMATCH, TK_EDITS,
+    TK_ALPHABET, TK_MOTIF, TK_SEARCH, TK_IN, TK_ALLOW, TK_MISMATCH, TK_EDITS, TK_REQUIRE,
     /* literals and names */
     TK_IDENT, TK_NUMBER, TK_STRING,
     /* structure */
@@ -13,7 +13,7 @@ typedef enum {
     /* pattern operators */
     TK_PIPE, TK_STAR, TK_PLUS, TK_QUESTION, TK_CARET, TK_AT,
     /* punctuation */
-    TK_COMMA, TK_SEMICOLON, TK_EQUAL,
+    TK_COMMA, TK_SEMICOLON, TK_EQUAL, TK_LE, TK_PERCENT,
     /* control */
     TK_EOF, TK_ERROR,
 } TokenType;

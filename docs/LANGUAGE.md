@@ -25,10 +25,15 @@ declaration  := alphabetDecl | motifDecl | searchStmt
 
 alphabetDecl := "alphabet" IDENT ";"
 
-motifDecl    := "motif" IDENT ( "{" pattern "}" modifiers? ";"?
-                              | "=" pattern modifiers? ";" )
+motifDecl    := "motif" IDENT ( "{" pattern "}" modifiers? require? ";"?
+                              | "=" pattern modifiers? require? ";" )
 
-modifiers    := "allow" NUMBER ( "mismatch" | "edit" | "edits" )
+modifiers    := "allow" ( NUMBER | "?" ) ( "mismatch" | "edit" | "edits" )
+                ( "at" ( "?" | NUMBER ( "," NUMBER )* ) )?
+
+require      := "require" "rate" "<=" NUMBER "per" NUMBER? UNIT
+                ( "," "divergence" NUMBER "%" )?
+UNIT         := "bp" | "kb" | "Mb"     (* contextual words, not reserved *)
 
 searchStmt   := "search" IDENT "in" STRING ";"
 
@@ -133,6 +138,35 @@ deletions can erase a motif whose shortest form has k residues or
 fewer, so `"ATG" allow 3 edits` is an error. When k is at least half
 the shortest length the compiler warns instead: the motif is legal,
 but after deletions too little of it is left to be specific.
+
+### 4.8 Budgets travel with references
+
+A referenced motif keeps its own budget inside a composite. With
+`motif tata = "TATAWAWR" allow 1 edits;`, the composite
+`{ @tata "N"{20,40} @kozak }` tolerates one edit inside the TATA box
+and none inside the Kozak sequence. Edits count only within a part's
+own span: no residue is inserted before a part's first position or
+after its last (the spacer already absorbs such residues).
+
+### 4.9 Contracts and chosen budgets
+
+`require rate <= R per N unit` is a statistical contract: the motif may
+expect at most R chance hits per N bases. `allow ? edits` leaves a
+budget for the compiler to choose. Every free budget must be governed
+by exactly one contract, either its own motif's or that of the single
+motif that uses it. The compiler then picks the budgets with the
+highest sensitivity at the stated divergence that still meet the rate,
+or reports that none can. A contract with no free budgets is checked
+as written, and breaking it is a compile-time error.
+
+### 4.10 Position-restricted errors
+
+`allow 1 mismatch at 1,2,5` lets errors fall only at the listed
+residue positions (1-based, as written). It needs a motif that is a
+fixed run of residues, so that "position 3" is unambiguous. With
+`allow ? mismatch at ?` the compiler chooses both the budget and the
+positions; with `--sites FILE` it scores each choice by how many of the
+given known sites it finds, so the positions are learned from examples.
 
 ## 5. Inferred match lengths
 

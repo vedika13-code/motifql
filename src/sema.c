@@ -276,6 +276,15 @@ static void infer_lengths(Sema *s, Node *node) {
             MotifDef *target = &s->program->motifs[node->ref_index];
             node->min_len = target->min_len;
             node->max_len = target->max_len;
+            /* A referenced motif's own edit budget lets its span shrink
+             * or grow by up to k inside the composite. The composite's
+             * length bounds must include that, or the matcher's length
+             * cut-off would stop reading before an insertion finished. */
+            if (target->error_model == ERR_EDIT && target->mismatch_budget > 0) {
+                int k = target->mismatch_budget;
+                node->min_len = node->min_len > k ? node->min_len - k : 0;
+                if (node->max_len != LEN_INF) node->max_len += k;
+            }
             break;
         }
     }
@@ -303,6 +312,16 @@ static void infer_all_lengths(Sema *s) {
     }
 }
 
+/* Re-runs length inference after budgets change (budget synthesis
+ * tries many assignments). No diagnostics are produced. */
+void sema_recompute_lengths(Program *program) {
+    Sema s;
+    s.program = program;
+    s.diag = NULL;
+    s.had_error = false;
+    infer_all_lengths(&s);
+}
+
 /* ---- pass 5b: checks that depend on inferred lengths ---------------------- */
 
 static void check_length_derived_rules(Sema *s) {
@@ -323,7 +342,15 @@ static void check_length_derived_rules(Sema *s) {
          * window matches. Comparing against min_len is the strict
          * reading: if the shortest alternative can be fully mismatched,
          * the budget is too large. */
-        if (m->mismatch_budget < 0) {
+        /* With `at P`, at most |P| positions can be in error, so the
+         * effective budget for the "too loose" checks is the smaller. */
+        int saved_budget = m->mismatch_budget;
+        if (m->error_positions && m->mismatch_budget > 0) {
+            int npos = 0;
+            for (uint32_t b = m->error_positions; b; b >>= 1) npos += (int)(b & 1u);
+            if (npos < m->min_len) m->mismatch_budget = 0;   /* some positions stay exact: never degenerate */
+        }
+        if (m->mismatch_budget < 0 && m->mismatch_budget != BUDGET_FREE) {
             sema_error(s, m->line, m->column,
                        "mismatch allowance cannot be negative");
         } else if (m->error_model == ERR_SUBSTITUTION && m->min_len != LEN_INF &&
@@ -353,10 +380,124 @@ static void check_length_derived_rules(Sema *s) {
                       m->min_len - m->mismatch_budget);
         }
 
+        m->mismatch_budget = saved_budget;
+
         if (!m->used) {
             sema_warn(s, m->line, m->column,
                       "motif '%.*s' is never referenced or searched",
                       m->name_length, m->name);
+        }
+    }
+}
+
+/* ---- pass 5c: position-restricted errors ---------------------------------- */
+
+/* `at P` names residue positions, which only makes sense for a motif
+ * that is a fixed run of residues: literals and classes, concatenated.
+ * Alternation, repetition or references would make "position 3"
+ * ambiguous. Returns the motif's length, or -1 if it is not linear. */
+static int linear_length(const Node *node) {
+    if (!node) return -1;
+    switch (node->type) {
+        case NODE_LITERAL: return node->mask_count;
+        case NODE_CLASS:   return 1;
+        case NODE_CONCAT: {
+            int total = 0;
+            for (int i = 0; i < node->child_count; i++) {
+                int l = linear_length(node->children[i]);
+                if (l < 0) return -1;
+                total += l;
+            }
+            return total;
+        }
+        default: return -1;
+    }
+}
+
+int sema_linear_length(const MotifDef *m) { return linear_length(m->pattern); }
+
+static void check_positions(Sema *s) {
+    for (int i = 0; i < s->program->motif_count; i++) {
+        MotifDef *m = &s->program->motifs[i];
+        if (!m->error_positions && !m->positions_free) continue;
+        int len = linear_length(m->pattern);
+        if (len < 0) {
+            sema_error(s, m->line, m->column,
+                       "'at' needs motif '%.*s' to be a fixed run of residues (no |, repeats or @references), "
+                       "so that positions are well defined", m->name_length, m->name);
+        } else if (len > 32) {
+            sema_error(s, m->line, m->column, "'at' supports motifs of up to 32 residues");
+        } else if (m->error_positions >> len) {
+            sema_error(s, m->line, m->column,
+                       "motif '%.*s' has %d residues, but 'at' names a position beyond that",
+                       m->name_length, m->name, len);
+        }
+        if (m->positions_free && m->mismatch_budget != BUDGET_FREE) {
+            sema_error(s, m->line, m->column, "'at ?' needs a free budget too: write 'allow ? ... at ?'");
+        }
+    }
+}
+
+/* ---- pass 6: budget-synthesis contracts ----------------------------------- */
+
+/* Marks every motif reachable from `index` through @references,
+ * including `index` itself. The reference graph is acyclic by now. */
+static void mark_reachable_node(Program *program, Node *node, bool *mark);
+static void mark_reachable(Program *program, int index, bool *mark) {
+    if (mark[index]) return;
+    mark[index] = true;
+    mark_reachable_node(program, program->motifs[index].pattern, mark);
+}
+static void mark_reachable_node(Program *program, Node *node, bool *mark) {
+    if (!node) return;
+    if (node->type == NODE_REF && node->ref_index >= 0) mark_reachable(program, node->ref_index, mark);
+    for (int i = 0; i < node->child_count; i++) mark_reachable_node(program, node->children[i], mark);
+}
+
+int sema_governing_requirement(Program *program, int free_index) {
+    int found = -1;
+    for (int r = 0; r < program->motif_count; r++) {
+        if (!program->motifs[r].has_requirement) continue;
+        bool mark[MAX_MOTIFS] = {false};
+        mark_reachable(program, r, mark);
+        if (mark[free_index]) {
+            if (found >= 0) return -2;   /* governed by two contracts: ambiguous */
+            found = r;
+        }
+    }
+    return found;
+}
+
+/* A free budget (`allow ?`) must be settled by exactly one `require`
+ * clause: the motif's own, or that of the one motif that uses it.
+ * With none, nothing says what to aim for; with two, the contracts
+ * could ask for different budgets for the same motif. */
+static void check_requirements(Sema *s) {
+    Program *program = s->program;
+    for (int i = 0; i < program->motif_count; i++) {
+        MotifDef *m = &program->motifs[i];
+        if (m->has_requirement) {
+            if (m->required_rate <= 0) {
+                sema_error(s, m->require_line, m->require_column,
+                           "a required rate of 0 can never be met; use a positive number of hits");
+            }
+            if (m->divergence >= 1.0) {
+                sema_error(s, m->require_line, m->require_column,
+                           "divergence must be below 100%%");
+            }
+        }
+        if (m->mismatch_budget != BUDGET_FREE) continue;
+        int gov = sema_governing_requirement(program, i);
+        if (gov == -1) {
+            sema_error(s, m->line, m->column,
+                       "motif '%.*s' has 'allow ?' but no 'require' clause uses it, so there is "
+                       "nothing to choose its budget against",
+                       m->name_length, m->name);
+        } else if (gov == -2) {
+            sema_error(s, m->line, m->column,
+                       "motif '%.*s' has 'allow ?' and is used by more than one motif with a "
+                       "'require' clause; its budget would be ambiguous",
+                       m->name_length, m->name);
         }
     }
 }
@@ -387,6 +528,8 @@ bool analyze_program(Program *program, Diagnostics *diag) {
 
     infer_all_lengths(&s);
     check_length_derived_rules(&s);
+    check_positions(&s);
+    check_requirements(&s);
 
     return !s.had_error;
 }

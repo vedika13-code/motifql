@@ -1,0 +1,6 @@
+// Position-restricted errors: one mismatch, only at positions 1, 2 or 5
+// of AATAAA (the positions where most human PAS variants differ).
+// positions.fa: TATAAA (pos 1), AAGAAA (pos 3), AGTAAA (pos 2), AATATA (pos 5).
+alphabet DNA;
+motif pas = "AATAAA" allow 1 mismatch at 1,2,5;
+search pas in "positions.fa";

@@ -10,6 +10,8 @@
 #include "fasta.h"
 #include "matcher.h"
 #include "specificity.h"
+#include "sensitivity.h"
+#include "synthesis.h"
 
 /*
  * Phase 1 driver: front end only.
@@ -29,9 +31,21 @@
  *   --specificity                expected chance hits for every motif,
  *                                computed from the compiled automaton
  *   --background FILE            estimate the background from a FASTA file
- *   --markov 0|1                 order of that background (default 1)
+ *   --markov K                   order of that background, 0..6 (default 1)
  *   --max-rate R                 warn above R expected chance hits per Mb
  *   --merge-contained            drop hits lying wholly inside the previous hit
+ *   --count-only                 print hit counts, not every hit
+ *
+ * Phase 3:
+ *   --sensitivity                chance hits AND sensitivity for every motif
+ *   --divergence D               substitution rate of diverged sites (default 0.10)
+ *   --indel G                    insertion + deletion rate (default 0.02)
+ *   --samples N --seed S         Monte Carlo settings (default 5000, 1)
+ *   --sites FILE                 known sites (one per record): sensitivity is the
+ *                                share found; synthesis learns from them
+ *   --empirical FILE             measure chance-hit rates by scanning a reference
+ *                                sequence (not the one being searched)
+ *   `require` clauses trigger budget synthesis automatically.
  *   --no-search                  compile only
  */
 
@@ -104,7 +118,7 @@ static void dump_nfa_dfa_bytecode(Program *program, bool want_nfa, bool want_dfa
         Nfa layered;
         bool built_layered = false;
         if (m->mismatch_budget > 0) {
-            nfa_apply_error_tolerance(&plain, m->mismatch_budget, m->error_model, &layered);
+            nfa_apply_error_tolerance_at(&plain, m->mismatch_budget, m->error_model, m->error_positions, &layered);
             final_nfa = &layered;
             built_layered = true;
         }
@@ -148,16 +162,19 @@ static void dump_nfa_dfa_bytecode(Program *program, bool want_nfa, bool want_dfa
 }
 
 static void motif_tolerance_text(const MotifDef *m, char *buf, size_t n) {
-    if (m->mismatch_budget == 0) snprintf(buf, n, "exact");
+    if (m->mismatch_budget == BUDGET_FREE) snprintf(buf, n, "? %s", m->error_model == ERR_EDIT ? "edits" : "mismatch");
+    else if (m->mismatch_budget == 0) snprintf(buf, n, "exact");
     else snprintf(buf, n, "%d %s", m->mismatch_budget,
                   m->error_model == ERR_EDIT ? (m->mismatch_budget == 1 ? "edit" : "edits")
                                              : (m->mismatch_budget == 1 ? "mismatch" : "mismatches"));
 }
 
 /* Compile-time specificity report: no sequence is scanned. */
-static void run_specificity(Program *program, Diagnostics *diag, const Background *bg, double max_rate) {
+static void run_specificity(Program *program, Diagnostics *diag, const RateSource *rates, double max_rate) {
     int flagged = 0;
-    printf("== specificity analysis (%s) ==\n", bg->source);
+    char srcbuf[256];
+    const char *src_text = rate_source_text(rates, srcbuf, sizeof(srcbuf));
+    printf("== specificity analysis (%s) ==\n", src_text);
     printf("%-16s %-12s %-6s %-14s %-14s %s\n",
            "motif", "tolerance", "DFA", "P(hit)/pos", "chance/Mb", "chance/100kb");
     for (int i = 0; i < program->motif_count; i++) {
@@ -165,7 +182,7 @@ static void run_specificity(Program *program, Diagnostics *diag, const Backgroun
         MatcherProgram mp;
         CompileStats stats = {0};
         compile_motif_to_bytecode(program, i, &mp, &stats);
-        double q = specificity_hit_probability(&mp, bg);
+        double q = rate_of(&mp, rates);
         char tol[32];
         motif_tolerance_text(m, tol, sizeof(tol));
         printf("%-16.*s %-12s %-6d %-14.3e %-14.1f %.2f\n",
@@ -174,7 +191,7 @@ static void run_specificity(Program *program, Diagnostics *diag, const Backgroun
             diag_reportf(diag, PHASE_SPECIFICITY, SEV_WARNING, m->line, m->column,
                          "motif '%.*s' (%s) expects about %.0f chance hits per Mb under the %s "
                          "(threshold %.0f); real sites may be swamped",
-                         m->name_length, m->name, tol, q * 1e6, bg->source, max_rate);
+                         m->name_length, m->name, tol, q * 1e6, src_text, max_rate);
             flagged++;
         }
         matcher_program_free(&mp);
@@ -182,7 +199,31 @@ static void run_specificity(Program *program, Diagnostics *diag, const Backgroun
     printf("motifs above %.0f chance hits per Mb: %d\n\n", max_rate, flagged);
 }
 
-static void run_searches(Program *program, bool merge_contained) {
+/* Specificity and sensitivity side by side: what a motif costs in
+ * chance hits, and what it buys in diverged sites found. */
+static void run_sensitivity(Program *program, const RateSource *rates, const MutationModel *model,
+                            int samples, uint64_t seed, const FastaFile *sites) {
+    char srcbuf[256];
+    printf("== sensitivity analysis (%s; sites mutated with %g%% substitution, %g%% indel; %d samples, seed %llu) ==\n",
+           rate_source_text(rates, srcbuf, sizeof(srcbuf)), model->substitution * 100, model->indel * 100, samples, (unsigned long long)seed);
+    printf("%-16s %-12s %-14s %s\n", "motif", "tolerance", "chance/Mb", "sensitivity [95% CI]");
+    for (int i = 0; i < program->motif_count; i++) {
+        MotifDef *m = &program->motifs[i];
+        MatcherProgram mp;
+        compile_motif_to_bytecode(program, i, &mp, NULL);
+        double q = rate_of(&mp, rates);
+        SensitivityResult s = sites ? sensitivity_on_sites(&mp, sites)
+                                    : sensitivity_estimate(program, i, &mp, model, samples, seed);
+        char tol[32];
+        motif_tolerance_text(m, tol, sizeof(tol));
+        printf("%-16.*s %-12s %-14.1f %.3f [%.3f, %.3f]\n", m->name_length, m->name, tol, q * 1e6,
+               s.sensitivity, s.ci_low, s.ci_high);
+        matcher_program_free(&mp);
+    }
+    printf("\n");
+}
+
+static void run_searches(Program *program, bool merge_contained, bool count_only, int search_order) {
     if (program->search_count == 0) return;
 
     printf("== running searches ==\n");
@@ -221,6 +262,7 @@ static void run_searches(Program *program, bool merge_contained) {
                  * the last one kept. */
                 if (merge_contained && kept_start >= 0 && hs >= kept_start && he <= kept_end) continue;
                 kept_start = hs; kept_end = he;
+                if (count_only) { total_hits++; continue; }
                 printf("  %s:%ld-%ld (len %ld)  %.*s\n",
                        rec->name, hits.hits[h].start + 1, hits.hits[h].start + hits.hits[h].length,
                        hits.hits[h].length,
@@ -234,10 +276,11 @@ static void run_searches(Program *program, bool merge_contained) {
         /* Put the observed count next to what chance alone would give
          * on a random sequence with this file's own composition. */
         Background bg;
-        if (background_from_fasta(&bg, program->alphabet, &fasta, 1, path)) {
+        if (background_from_fasta(&bg, program->alphabet, &fasta, search_order, path)) {
             long positions = background_valid_positions(&fasta, program->alphabet);
             double q = specificity_hit_probability(&mp, &bg);
             printf("  expected by chance: %.2f (%s, %ld positions)\n", q * (double)positions, bg.source, positions);
+            background_free(&bg);
         }
 
         matcher_program_free(&mp);
@@ -252,10 +295,17 @@ int main(int argc, char **argv) {
     bool want_nfa = false, want_dfa = false, want_bytecode = false;
     bool want_search = true;
     bool merge_contained = false;
+    bool count_only = false;
     bool want_specificity = false;
     const char *background_path = NULL;
+    const char *empirical_path = NULL;
+    const char *sites_path = NULL;
     int markov_order = 1;
     double max_rate = 1000.0;
+    bool want_sensitivity = false;
+    MutationModel model = { 0.10, 0.02 };
+    int samples = 5000;
+    uint64_t seed = 1;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--tokens") == 0)        want_tokens = true;
@@ -266,10 +316,18 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--bytecode") == 0) want_bytecode = true;
         else if (strcmp(argv[i], "--no-search") == 0) want_search = false;
         else if (strcmp(argv[i], "--merge-contained") == 0) merge_contained = true;
+        else if (strcmp(argv[i], "--count-only") == 0) count_only = true;
         else if (strcmp(argv[i], "--specificity") == 0) want_specificity = true;
         else if (strcmp(argv[i], "--background") == 0 && i + 1 < argc) background_path = argv[++i];
-        else if (strcmp(argv[i], "--markov") == 0 && i + 1 < argc) markov_order = atoi(argv[++i]) ? 1 : 0;
+        else if (strcmp(argv[i], "--empirical") == 0 && i + 1 < argc) empirical_path = argv[++i];
+        else if (strcmp(argv[i], "--sites") == 0 && i + 1 < argc) sites_path = argv[++i];
+        else if (strcmp(argv[i], "--markov") == 0 && i + 1 < argc) markov_order = atoi(argv[++i]);
         else if (strcmp(argv[i], "--max-rate") == 0 && i + 1 < argc) max_rate = atof(argv[++i]);
+        else if (strcmp(argv[i], "--sensitivity") == 0) want_sensitivity = true;
+        else if (strcmp(argv[i], "--divergence") == 0 && i + 1 < argc) model.substitution = atof(argv[++i]);
+        else if (strcmp(argv[i], "--indel") == 0 && i + 1 < argc) model.indel = atof(argv[++i]);
+        else if (strcmp(argv[i], "--samples") == 0 && i + 1 < argc) samples = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--seed") == 0 && i + 1 < argc) seed = (uint64_t)strtoull(argv[++i], NULL, 10);
         else if (argv[i][0] == '-') {
             fprintf(stderr, "motifql: unknown option '%s'\n", argv[i]);
             return 1;
@@ -280,12 +338,15 @@ int main(int argc, char **argv) {
 
     if (!path) {
         fprintf(stderr, "usage: motifql [--tokens] [--ast] [--symbols] [--nfa] [--dfa] [--bytecode]\n"
-                        "               [--specificity [--background FILE] [--markov 0|1] [--max-rate R]]\n"
+                        "               [--specificity [--background FILE] [--markov K] [--max-rate R]]\n"
+                        "               [--sensitivity [--divergence D] [--indel G] [--samples N] [--seed S]]\n"
+                        "               [--empirical REFERENCE.fa] [--sites KNOWN.fa] [--count-only]\n"
                         "               [--merge-contained] [--no-search] <file.motif>\n");
         return 1;
     }
 
-    if (!want_tokens && !want_ast && !want_symbols && !want_nfa && !want_dfa && !want_bytecode && !want_specificity) {
+    if (!want_tokens && !want_ast && !want_symbols && !want_nfa && !want_dfa && !want_bytecode &&
+        !want_specificity && !want_sensitivity) {
         want_tokens = want_ast = want_symbols = true;
     }
 
@@ -319,25 +380,72 @@ int main(int argc, char **argv) {
         printf("result: REJECTED during semantic analysis\n");
     } else {
         printf("result: ACCEPTED\n\n");
+
+        /* One background for every statistical pass: uniform, or
+         * estimated from --background FILE. */
+        Background bg;
+        background_uniform(&bg, program.alphabet);
+        if (background_path) {
+            FastaFile bgf;
+            if (fasta_read(background_path, &bgf)) {
+                Background fitted;
+                if (background_from_fasta(&fitted, program.alphabet, &bgf, markov_order, background_path)) {
+                    background_free(&bg);
+                    bg = fitted;
+                } else {
+                    fprintf(stderr, "motifql: no usable residues in '%s'; using a uniform background\n", background_path);
+                }
+                fasta_free(&bgf);
+            }
+        }
+
+        /* --empirical FILE: measure chance-hit rates by scanning a
+         * reference sequence instead of using the background model. */
+        FastaFile empirical_fasta = {0};
+        RateSource rates = { &bg, NULL, NULL };
+        if (empirical_path && fasta_read(empirical_path, &empirical_fasta)) {
+            rates.reference = &empirical_fasta;
+            rates.reference_label = empirical_path;
+        }
+
+        /* --sites FILE: known sites, one per record; sensitivity becomes
+         * the share of them the motif finds. */
+        FastaFile sites_fasta = {0};
+        bool sites_loaded = sites_path && fasta_read(sites_path, &sites_fasta);
+
+        /* Budget synthesis settles every `allow ?` before anything is
+         * compiled for output or search. */
+        bool synth_ok = true;
+        for (int i = 0; i < program.motif_count; i++) {
+            if (program.motifs[i].has_requirement) {
+                SynthesisOptions so = { &bg, rates, model, samples, seed,
+                                        sites_loaded ? &sites_fasta : NULL, sites_path };
+                synth_ok = synthesize_budgets(&program, &diag, &so);
+                break;
+            }
+        }
+        if (!synth_ok) {
+            printf("result: REJECTED during budget synthesis\n");
+            background_free(&bg);
+            if (rates.reference) fasta_free(&empirical_fasta);
+            if (sites_loaded) fasta_free(&sites_fasta);
+            program_free(&program);
+            free(source);
+            return 1;
+        }
+
         if (want_nfa || want_dfa || want_bytecode) {
             dump_nfa_dfa_bytecode(&program, want_nfa, want_dfa, want_bytecode);
         }
-        if (want_specificity) {
-            Background bg;
-            background_uniform(&bg, program.alphabet);
-            if (background_path) {
-                FastaFile bgf;
-                if (fasta_read(background_path, &bgf)) {
-                    if (!background_from_fasta(&bg, program.alphabet, &bgf, markov_order, background_path))
-                        fprintf(stderr, "motifql: no usable residues in '%s'; using a uniform background\n", background_path);
-                    fasta_free(&bgf);
-                }
-            }
-            run_specificity(&program, &diag, &bg, max_rate);
-        }
+        if (want_specificity) run_specificity(&program, &diag, &rates, max_rate);
+        if (want_sensitivity) run_sensitivity(&program, &rates, &model, samples, seed,
+                                              sites_loaded ? &sites_fasta : NULL);
         if (want_search) {
-            run_searches(&program, merge_contained);
+            run_searches(&program, merge_contained, count_only, markov_order);
         }
+        background_free(&bg);
+        if (rates.reference) fasta_free(&empirical_fasta);
+        if (sites_loaded) fasta_free(&sites_fasta);
     }
 
     int exit_code = (parsed && analyzed) ? 0 : 1;

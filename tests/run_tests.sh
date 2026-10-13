@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # MotifQL test suite: front end (Phase 1), automaton and matcher,
-# edit distance, and compile-time specificity analysis.
+# edit distance, compile-time specificity analysis (Phase 2), and
+# per-part budgets, sensitivity and budget synthesis (Phase 3).
 #
 # Each case asserts only the ACCEPT/REJECT verdict, not exact message
 # text, so error wording can be improved without breaking the suite.
@@ -158,6 +159,68 @@ check_spec_contains tests/promoter.motif "pyrimidine_run   exact        4      1
     "unbounded repeat: estimate equals the closed form 1/8"
 check_stderr_contains tests/promoter.motif "expects about 4639 chance hits per Mb" \
     "over-permissive motif triggers a specificity warning at compile time" --specificity
+
+echo
+echo "== Phase 3: per-part budgets, sensitivity, budget synthesis =="
+
+check_output_contains tests/perpart.motif "70-109 (len 40)  TATAAAGGGGG" \
+    "per-part budget: TATA deletion inside a composite is found"
+if (cd tests && ../build/motifql --symbols perpart.motif | sed -n '/^strict in/,/hit(s)/p' | grep -q "70-109"); then
+    printf "  FAIL  composite without a part budget wrongly matched the TATA deletion\n"; FAIL=$((FAIL + 1))
+else
+    printf "  PASS  composite without a part budget does not match the TATA deletion\n"; PASS=$((PASS + 1))
+fi
+if (cd tests && ../build/motifql --symbols perpart.motif | sed -n '/^promoter in/,/hit(s)/p' | grep -q "129-"); then
+    printf "  FAIL  Kozak deletion matched although Kozak has no budget\n"; FAIL=$((FAIL + 1))
+else
+    printf "  PASS  a part's budget stays local: Kozak deletion is not matched\n"; PASS=$((PASS + 1))
+fi
+
+# Sensitivity, closed form with substitutions only: TATAWAWR keeps its
+# 5 fixed positions with p = 0.9 each and its 3 two-base positions with
+# p = 0.9 + 0.1/3 each: 0.9^5 * (0.9333...)^3 = 0.4801.
+if (cd tests && ../build/motifql --sensitivity --no-search --indel 0 --samples 20000 edits.motif 2>/dev/null \
+      | awk '/^tata_exact/ { gsub(/[\[\],]/, " "); if ($5 <= 0.4801 && $6 >= 0.4801) ok=1 } END { exit !ok }'); then
+    printf "  PASS  sensitivity 95%% interval contains the closed form 0.4801\n"; PASS=$((PASS + 1))
+else
+    printf "  FAIL  sensitivity interval misses the closed form 0.4801\n"; FAIL=$((FAIL + 1))
+fi
+
+check_synth() {
+    local file="$1"; local needle="$2"; local label="$3"
+    if (cd tests && ../build/motifql --symbols "$(basename "$file")" 2>&1 | grep -qF "$needle"); then
+        printf "  PASS  %s\n" "$label"; PASS=$((PASS + 1))
+    else
+        printf "  FAIL  expected output containing: %s -- %s\n" "$needle" "$label"; FAIL=$((FAIL + 1))
+    fi
+}
+check_synth tests/synthesis.motif "note: chose tata = 1 edit, kozak = 0 edits" \
+    "synthesis picks the most sensitive budgets that meet 2 per 100kb"
+check_synth tests/synthesis.motif "10 skipped by monotone pruning" \
+    "monotone pruning skips assignments above an infeasible one"
+check_synth tests/synthesis.motif "70-109 (len 40)" \
+    "synthesised budgets are used by the search"
+check tests/synth_errors.motif   reject  "orphan, shared and zero-rate contracts rejected"
+check tests/contract.motif       reject  "fixed budget that breaks its 'require' clause rejected"
+check tests/infeasible.motif     reject  "no budget can meet the target: rejected with a reason"
+
+
+echo
+echo "== Paper extensions: position-restricted errors, learning from known sites =="
+check_output_contains tests/positions.motif "4-9 (len 6)  TATAAA" "'at 1,2,5': variant at position 1 found"
+check_output_contains tests/positions.motif "31-36 (len 6)  AATATA" "'at 1,2,5': variant at position 5 found"
+if (cd tests && ../build/motifql --symbols positions.motif | grep -q "AAGAAA"); then
+    printf "  FAIL  variant at position 3 matched although 3 is not listed\n"; FAIL=$((FAIL + 1))
+else
+    printf "  PASS  'at 1,2,5': variant at position 3 is not matched\n"; PASS=$((PASS + 1))
+fi
+check tests/positions_errors.motif reject "'at' on a non-linear motif, out-of-range position, 'at ?' without '?' budget"
+if (cd tests && ../build/motifql --symbols --sites learn_sites.fa --empirical learn_bg.fa learn.motif 2>/dev/null \
+      | grep -qF "note: chose pas = 1 mismatch at 2"); then
+    printf "  PASS  learning from known sites: compiler finds the one position where they vary\n"; PASS=$((PASS + 1))
+else
+    printf "  FAIL  learning from known sites did not choose '1 mismatch at 2'\n"; FAIL=$((FAIL + 1))
+fi
 
 echo
 echo "passed: $PASS   failed: $FAIL"

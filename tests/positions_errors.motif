@@ -1,0 +1,10 @@
+alphabet DNA;
+// Error: 'at' needs a fixed run of residues.
+motif alt { "AATAAA" | "ATTAAA" } allow 1 mismatch at 1;
+// Error: position 9 does not exist in a 6-residue motif.
+motif far = "AATAAA" allow 1 mismatch at 9;
+// Error: 'at ?' without a free budget.
+motif half = "AATAAA" allow 1 mismatch at ? require rate <= 10 per kb;
+search alt in "positions.fa";
+search far in "positions.fa";
+search half in "positions.fa";

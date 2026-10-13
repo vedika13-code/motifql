@@ -11,7 +11,7 @@ void compile_motif_to_bytecode(Program *program, int motif_index, MatcherProgram
     Nfa layered;
     bool built_layered = false;
     if (m->mismatch_budget > 0) {
-        nfa_apply_error_tolerance(&plain, m->mismatch_budget, m->error_model, &layered);
+        nfa_apply_error_tolerance_at(&plain, m->mismatch_budget, m->error_model, m->error_positions, &layered);
         final_nfa = &layered;
         built_layered = true;
     }

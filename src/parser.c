@@ -257,14 +257,29 @@ static void parse_alphabet_decl(Parser *p) {
     consume(p, TK_SEMICOLON, "expect ';' after alphabet declaration");
 }
 
+static bool check_word(Parser *p, const char *word) {
+    int n = (int)strlen(word);
+    return p->current.type == TK_IDENT && p->current.length == n && memcmp(p->current.start, word, (size_t)n) == 0;
+}
+
+static void expect_word(Parser *p, const char *word, const char *message) {
+    if (check_word(p, word)) { advance(p); return; }
+    error_at_current(p, message);
+}
+
 static void parse_mismatch_modifier(Parser *p, MotifDef *motif) {
     if (!match(p, TK_ALLOW)) return;
-    if (!check(p, TK_NUMBER)) {
-        error_at_current(p, "expect a number after 'allow'");
+    if (match(p, TK_QUESTION)) {
+        /* `allow ? edits`: the budget is left for the compiler to choose
+         * (budget synthesis, driven by a `require` clause). */
+        motif->mismatch_budget = BUDGET_FREE;
+    } else if (!check(p, TK_NUMBER)) {
+        error_at_current(p, "expect a number or '?' after 'allow'");
         return;
+    } else {
+        advance(p);
+        motif->mismatch_budget = (int)p->previous.number;
     }
-    advance(p);
-    motif->mismatch_budget = (int)p->previous.number;
     if (match(p, TK_MISMATCH)) {
         motif->error_model = ERR_SUBSTITUTION;
     } else if (match(p, TK_EDITS)) {
@@ -272,6 +287,75 @@ static void parse_mismatch_modifier(Parser *p, MotifDef *motif) {
     } else {
         error_at_current(p, "expect 'mismatch' or 'edits' after the allowance count");
         motif->mismatch_budget = 0;   /* don't carry a half-parsed budget into later dumps */
+        return;
+    }
+
+    /* Optional position restriction:  at 1,2,5   or   at ?
+     * Positions are 1-based residue positions of the motif as written.
+     * `at ?` lets budget synthesis choose them. */
+    if (check_word(p, "at")) {
+        advance(p);
+        if (match(p, TK_QUESTION)) {
+            motif->positions_free = true;
+            return;
+        }
+        do {
+            if (!check(p, TK_NUMBER)) { error_at_current(p, "expect a position number after 'at'"); return; }
+            advance(p);
+            long pos = p->previous.number;
+            if (pos < 1 || pos > 32) { error_at(p, &p->previous, "positions run from 1 to 32"); return; }
+            motif->error_positions |= (uint32_t)1u << (pos - 1);
+        } while (match(p, TK_COMMA));
+    }
+}
+
+/* require_clause := "require" "rate" "<=" NUMBER "per" [NUMBER] UNIT
+ *                   [ "," "divergence" NUMBER "%" ]
+ * UNIT           := "bp" | "kb" | "Mb"
+ *
+ * `rate`, `per`, `divergence` and the units are contextual words, not
+ * reserved keywords, so they stay usable as motif names elsewhere. */
+static void parse_require_clause(Parser *p, MotifDef *motif) {
+    if (!match(p, TK_REQUIRE)) return;
+    Token at = p->previous;
+    motif->has_requirement = true;
+    motif->divergence = -1.0;
+    motif->require_line = at.line;
+    motif->require_column = at.column;
+
+    expect_word(p, "rate", "expect 'rate' after 'require'");
+    consume(p, TK_LE, "expect '<=' after 'require rate'");
+    if (!check(p, TK_NUMBER)) { error_at_current(p, "expect a number of hits after '<='"); return; }
+    advance(p);
+    double hits = (double)p->previous.number;
+    expect_word(p, "per", "expect 'per' after the number of hits");
+
+    double scale = 1.0;
+    char scale_txt[16] = "";
+    if (check(p, TK_NUMBER)) {
+        advance(p);
+        scale = (double)p->previous.number;
+        snprintf(scale_txt, sizeof(scale_txt), "%ld", p->previous.number);
+    }
+    double unit = 0;
+    if (check_word(p, "bp")) unit = 1;
+    else if (check_word(p, "kb")) unit = 1e3;
+    else if (check_word(p, "Mb")) unit = 1e6;
+    if (unit == 0) { error_at_current(p, "expect a unit: 'bp', 'kb' or 'Mb'"); return; }
+    snprintf(motif->required_unit, sizeof(motif->required_unit), "%.15s%.*s", scale_txt,
+             p->current.length < 8 ? p->current.length : 8, p->current.start);
+    advance(p);
+
+    if (scale <= 0) { error_at(p, &at, "the length in 'per N unit' must be positive"); return; }
+    motif->required_rate_shown = hits;
+    motif->required_rate = hits / (scale * unit);
+
+    if (match(p, TK_COMMA)) {
+        expect_word(p, "divergence", "expect 'divergence' after ','");
+        if (!check(p, TK_NUMBER)) { error_at_current(p, "expect a percentage after 'divergence'"); return; }
+        advance(p);
+        motif->divergence = (double)p->previous.number / 100.0;
+        consume(p, TK_PERCENT, "expect '%' after the divergence");
     }
 }
 
@@ -306,10 +390,12 @@ static void parse_motif_decl(Parser *p) {
         pattern = parse_alternation(p);
         consume(p, TK_RBRACE, "expect '}' to close the motif body");
         parse_mismatch_modifier(p, motif);
+        parse_require_clause(p, motif);
         match(p, TK_SEMICOLON);           /* optional after a braced body */
     } else if (match(p, TK_EQUAL)) {
         pattern = parse_alternation(p);
         parse_mismatch_modifier(p, motif);
+        parse_require_clause(p, motif);
         consume(p, TK_SEMICOLON, "expect ';' after a '=' motif definition");
     } else {
         error_at_current(p, "expect '{' or '=' after the motif name");
